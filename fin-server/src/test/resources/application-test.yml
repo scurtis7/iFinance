@@ -1,0 +1,12 @@
+# Application test properties
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: none
+  datasource:
+    url: jdbc:h2:mem:testDB;user=sa;password=;
+    driverClassName: org.h2.Driver
+
+scurtis:
+  app-version: test
