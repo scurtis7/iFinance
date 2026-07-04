@@ -15,4 +15,4 @@ I wanted to try and code my own version of Quicken so I don't have to pay for it
 ![Angular](https://img.shields.io/badge/Angular-DD0031?logo=angular&logoColor=white&style=plastic)
 ![Apache Maven Badge](https://img.shields.io/badge/Apache%20Maven-C71A36?logo=apachemaven&logoColor=white&style=plastic)
 
-More badges here: https://github.com/alexandresanlim/Badges4-README.md-Profile
+<!-- More badges here: https://github.com/alexandresanlim/Badges4-README.md-Profile -->
