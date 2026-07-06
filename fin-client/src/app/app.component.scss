@@ -1,4 +1,36 @@
 
-.main-layout {
+.main-background {
   margin: 10px;
 }
+
+.main-layout {
+  display: grid;
+  grid-template-rows: auto auto auto;
+}
+
+.content-layout {
+  display: grid;
+  grid-template-columns: 300px auto;
+  grid-template-rows: auto;
+}
+
+.side-menu {
+  height: 100%;
+  //border: 1px solid red;
+}
+
+.main-content {
+  //border: 1px solid red;
+}
+
+.header {
+}
+
+.footer {
+}
+
+
+
+
+
+
