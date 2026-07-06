@@ -5,6 +5,7 @@ import { routes } from './app.routes';
 import { provideAnimationsAsync } from "@angular/platform-browser/animations/async";
 import { providePrimeNG } from "primeng/config";
 import Aura from '@primeng/themes/aura'
+import { ColorPresets } from "./color-presets";
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -13,7 +14,10 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     providePrimeNG({
       theme: {
-        preset: Aura
+        preset: ColorPresets,
+        options: {
+          darkModeSelector: '.my-app-dark',
+        }
       }
     })
   ]
