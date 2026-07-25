@@ -11,8 +11,6 @@ iFinance is a budgeting and stock portfolio management application.
 * [Angular](https://v18.angular.dev/overview) (18+)
 * [PrimeNG](https://v18.primeng.org/installation) (18+)
 
-# Technologies
-
 ![Java](https://img.shields.io/badge/Java-ED8B00?style=plastic&logo=java&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-6DB33F?logo=springboot&logoColor=white&style=plastic)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white&style=plastic)
