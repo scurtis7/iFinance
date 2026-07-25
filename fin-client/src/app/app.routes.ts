@@ -1,7 +1,9 @@
 import { Routes } from '@angular/router';
-import { HomeComponent } from "./components/home/home.component";
+import { BudgetComponent } from "./components/budget/budget.component";
+import { PortfolioComponent } from "./components/portfolio/portfolio.component";
 
 export const routes: Routes = [
-  { path: 'home', component: HomeComponent },
-  { path: '**', redirectTo: 'home' }
+  { path: 'budget', component: BudgetComponent },
+  { path: 'portfolio', component: PortfolioComponent },
+  { path: '**', redirectTo: 'budget' }
 ];

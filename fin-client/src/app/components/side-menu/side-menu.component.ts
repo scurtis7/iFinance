@@ -8,7 +8,6 @@ import { Card } from "primeng/card";
   standalone: true,
   imports: [
     Menubar,
-    ToggleButton,
     Card
   ],
   templateUrl: './side-menu.component.html',

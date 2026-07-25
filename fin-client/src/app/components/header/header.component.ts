@@ -29,10 +29,30 @@ export class HeaderComponent implements OnInit {
     this.items = [
       {
         label: 'iFinance',
-        // icon: 'pi pi-dollar',
+        icon: 'pi pi-home',
         command: () => {
-          this.router.navigate(['/home']);
+          this.router.navigate(['/budget']);
         }
+      },
+      {
+        label: 'Features',
+        icon: 'pi pi-star',
+        items: [
+          {
+            label: 'Budget',
+            icon: 'pi pi-calculator',
+            command: () => {
+              this.router.navigate(['/budget']);
+            }
+          },
+          {
+            label: 'Portfolio',
+            icon: 'pi pi-chart-line',
+            command: () => {
+              this.router.navigate(['/portfolio']);
+            }
+          }
+        ]
       }
     ]
   }

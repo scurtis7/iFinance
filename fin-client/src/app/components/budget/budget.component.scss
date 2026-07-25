@@ -1,0 +1,16 @@
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.content-layout {
+  display: grid;
+  grid-template-columns: 300px auto;
+  grid-template-rows: 1fr;
+  height: 100%;
+}
+
+.home-content {
+  margin: 20px;
+}

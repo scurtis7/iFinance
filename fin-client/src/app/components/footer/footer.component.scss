@@ -1,7 +1,16 @@
 
-.footer {
+.footer-layout {
   display: flex;
   flex-direction: column;
   align-items: center;
-  border: 1px solid white;
+  justify-content: center;
+  background: var(--p-content-background);
+  border: 1px solid var(--p-content-border-color);
+  height: 40px;
+  border-radius: 5px;
+}
+
+.footer-text {
+  font-size: .8rem;
+  color: var(--p-content-color);
 }
