@@ -7,9 +7,9 @@ Finance Server will handle backend business logic for iFinance.
 The Finance Server is built on top of a few core technologies:
 
 * Java 21
-* [Maven](https://maven.apache.org) (3.0.0+)
 * [Spring Boot](https://spring.io/projects/spring-boot) (4.0.0+)
 * [PostgreSQL](https://www.postgresql.org) (42.7.11+)
+* [Maven](https://maven.apache.org) (3.0.0+)
 
 # Technologies
 
@@ -36,16 +36,18 @@ To build the Finance Server and generate code coverage:
 
 In order to run the Finance Server the following environment variables must be set:
 
-| VARIABLE                   | Description                          |
-|:---------------------------|:-------------------------------------|
-| SPRING_DATASOURCE_URL      | The URL to the Postgresql database   |
-| SPRING_DATASOURCE_USERNAME | Username for the Postgresql database |
-| SPRING_DATASOURCE_PASSWORD | Password for the Postgresql database |
+| VARIABLE              | Description                          |
+|:----------------------|:-------------------------------------|
+| SPRING_R2DBC_URL      | The URL to the Postgresql database   |
+| SPRING_R2DBC_USERNAME | Username for the Postgresql database |
+| SPRING_R2DBC_PASSWORD | Password for the Postgresql database |
 
 ## Endpoints
+
 A brief description of the endpoints can be found in this section.
 
 ### REST Endpoint
+
 This endpoint will be called to...
 
 | Method | Url           | Description |
@@ -53,6 +55,7 @@ This endpoint will be called to...
 | GET    | .../endpoint/ | Returns ... |
 
 ### Health Check Endpoint
+
 To verify the app is up and running you can call the health endpoint below
 
 | Method | Url                  | Description                                      |
