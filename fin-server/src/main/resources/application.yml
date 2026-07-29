@@ -4,9 +4,7 @@ spring:
   application:
     name: fin-server
 
-#management:
-#  endpoint:
-#    health:
-#      show-details: always
-
-
+management:
+  endpoint:
+    health:
+      show-details: always
