@@ -17,39 +17,33 @@
 		<apache.commons.version>3.20.0</apache.commons.version>
 		<checkstyle.plugin.version>3.6.0</checkstyle.plugin.version>
 		<checkstyle.version>13.5.0</checkstyle.version>
-		<flyway.version>12.8.1</flyway.version>
 		<h2database.version>2.4.240</h2database.version>
 		<jacoco.plugin.version>0.8.15</jacoco.plugin.version>
-		<lombok.version>1.18.46</lombok.version>
 		<maven.plugin.version>3.15.0</maven.plugin.version>
 		<postgresql.jdbc.version>42.7.11</postgresql.jdbc.version>
+		<postgresql.r2dbc.version>1.1.2.RELEASE</postgresql.r2dbc.version>
 		<surefire.plugin.version>3.5.6</surefire.plugin.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-data-jpa</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-flyway</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-database-postgresql</artifactId>
-			<version>${flyway.version}</version>
+			<artifactId>spring-boot-starter-data-r2dbc</artifactId>
 		</dependency>
 
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<version>${postgresql.jdbc.version}</version>
-			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>r2dbc-postgresql</artifactId>
+			<version>${postgresql.r2dbc.version}</version>
 		</dependency>
 
 		<dependency>
@@ -74,6 +68,11 @@
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
 			<version>${h2database.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.r2dbc</groupId>
+			<artifactId>r2dbc-h2</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
