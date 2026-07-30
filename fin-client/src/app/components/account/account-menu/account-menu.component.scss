@@ -1,0 +1,59 @@
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+.account-menu-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-menu-card {
+  flex: 1;
+  font-size: 14px;
+
+  ::ng-deep .p-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #e5e7eb;
+    border-color: #d1d5db;
+  }
+
+  ::ng-deep .p-card-title {
+    color: var(--p-primary-900);
+  }
+
+  ::ng-deep .p-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::ng-deep .p-card-content {
+    flex: 1;
+  }
+}
+
+.account-menu {
+  ::ng-deep .p-menu {
+    width: 100%;
+    background: #d1d5db;
+    border-color: #9ca3af;
+  }
+
+  ::ng-deep .p-menu-item-link {
+    color: var(--p-primary-900);
+  }
+}
+
+:host-context(.my-app-dark) ::ng-deep .account-menu .p-menu-item-content:hover .p-menu-item-link,
+:host-context(.my-app-dark) ::ng-deep .account-menu .p-menu-item.p-focus .p-menu-item-link {
+  color: #d1d5db;
+}
+
+.new-account {
+  margin-top: 1rem;
+}

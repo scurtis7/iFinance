@@ -31,7 +31,7 @@ export class HeaderComponent implements OnInit {
         label: 'iFinance',
         icon: 'pi pi-home',
         command: () => {
-          this.router.navigate(['/budget']);
+          this.router.navigate(['/accounts']);
         }
       },
       {
@@ -39,10 +39,10 @@ export class HeaderComponent implements OnInit {
         icon: 'pi pi-star',
         items: [
           {
-            label: 'Budget',
+            label: 'Accounts',
             icon: 'pi pi-calculator',
             command: () => {
-              this.router.navigate(['/budget']);
+              this.router.navigate(['/accounts']);
             }
           },
           {
