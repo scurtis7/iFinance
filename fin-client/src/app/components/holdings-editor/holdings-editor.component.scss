@@ -14,9 +14,39 @@
   gap: 4px 16px;
   margin-bottom: 12px;
 
+  &.collapsed {
+    margin-bottom: 0;
+  }
+
   h2 {
     margin: 0;
     font-size: 1.3rem;
+  }
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover .chevron {
+    color: $dark-teal-600;
+  }
+}
+
+.chevron {
+  display: inline-block;
+  color: $air-force-blue-400;
+  transition: transform 150ms ease;
+
+  &.collapsed {
+    transform: rotate(-90deg);
   }
 }
 
@@ -173,17 +203,82 @@ input {
   }
 }
 
-.add-form, .hsa {
+.add-btn {
+  margin-left: auto;
+  align-self: center;
+}
+
+.hsa {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
+
+  label {
+    font-weight: 700;
+    margin-right: 4px;
+  }
 }
 
-.add-label, .hsa label {
-  font-weight: 700;
-  margin-right: 4px;
+// Padding sits on the form, not the dialog, so a click on the dialog element itself is always a backdrop click.
+.add-dialog {
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba($air-force-blue-900, 0.3);
+  color: inherit;
+
+  &::backdrop {
+    background: rgba($ink-black-900, 0.45);
+  }
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 280px;
+  padding: 20px 24px;
+
+  h3 {
+    margin: 0 0 4px;
+    font-size: 1.2rem;
+  }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: $air-force-blue-500;
+  }
+
+  input {
+    width: auto;
+  }
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.secondary-btn {
+  font: inherit;
+  padding: 4px 14px;
+  border: 1px solid $ash-grey-300;
+  border-radius: 4px;
+  background: white;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: $ash-grey-50;
+  }
 }
 
 .primary-btn {

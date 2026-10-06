@@ -14,6 +14,8 @@ import { PortfolioService } from '../../services/portfolio.service';
 export class HoldingsEditorComponent {
   readonly portfolio = inject(PortfolioService);
   private readonly locale = inject(LOCALE_ID);
+  /** Whether the section body is shown; open by default on page load. */
+  expanded = true;
   addError = '';
 
   /** Shows the raw number while a currency field is being edited. */
@@ -60,7 +62,32 @@ export class HoldingsEditorComponent {
     this.commit(input, value => this.portfolio.setHsa(value));
   }
 
-  add(ticker: HTMLInputElement, category: HTMLInputElement, price: HTMLInputElement): void {
+  openAdd(dialog: HTMLDialogElement, ticker: HTMLInputElement): void {
+    dialog.showModal();
+    ticker.focus();
+  }
+
+  closeAdd(dialog: HTMLDialogElement): void {
+    dialog.close();
+  }
+
+  /**
+   * Closes the dialog when the click lands on its backdrop. Kept as a void method because an inline
+   * `a && b` handler returns false for every other click, which makes Angular cancel it (blocking submit).
+   */
+  closeOnBackdrop(event: MouseEvent, dialog: HTMLDialogElement): void {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  }
+
+  /** Clears the add form whenever the dialog closes, whether by Add, Cancel, Esc or a backdrop click. */
+  resetAdd(form: HTMLFormElement): void {
+    form.reset();
+    this.addError = '';
+  }
+
+  add(dialog: HTMLDialogElement, ticker: HTMLInputElement, category: HTMLInputElement, price: HTMLInputElement): void {
     const value = Number(price.value || 0);
     if (!ticker.value.trim() || Number.isNaN(value) || value < 0) {
       this.addError = 'Enter a ticker and a valid price.';
@@ -70,11 +97,7 @@ export class HoldingsEditorComponent {
       this.addError = `${ticker.value.trim().toUpperCase()} is already in the list.`;
       return;
     }
-    this.addError = '';
-    ticker.value = '';
-    category.value = '';
-    price.value = '';
-    ticker.focus();
+    dialog.close();
   }
 
   reorder(event: CdkDragDrop<unknown>): void {
