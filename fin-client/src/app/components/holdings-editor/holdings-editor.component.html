@@ -1,15 +1,17 @@
 <section class="panel">
   <div class="panel-header">
-    <h2>Holdings &amp; Cash</h2>
-    <span class="hint">Edit prices, shares and cash here. Everything else is calculated.</span>
+    <h2>Cash &amp; Holdings</h2>
+    <span class="hint">Edit cash, price and shares. Everything else is calculated.</span>
   </div>
 
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
+          <th class="grip-col"></th>
           <th class="left">Ticker</th>
           <th class="left">Category</th>
+          <th>Color</th>
           <th>Price</th>
           @for (account of portfolio.accounts(); track account.id) {
             <th>{{ account.name }}</th>
@@ -19,34 +21,50 @@
       </thead>
       <tbody>
         <tr class="cash-row">
+          <td></td>
           <td class="left ticker">Cash</td>
           <td class="left muted">—</td>
+          <td><span class="cash-swatch" role="img" title="Cash color is fixed" aria-label="Cash color is fixed"></span></td>
           <td class="muted">—</td>
           @for (account of portfolio.accounts(); track account.id) {
             <td>
-              <input type="number" min="0" step="0.01" [value]="account.cash"
+              <input type="text" inputmode="decimal" [value]="account.cash | currency"
                      [attr.aria-label]="account.name + ' cash'"
+                     (focus)="unformatMoney($any($event.target))"
+                     (blur)="formatMoney($any($event.target))"
                      (change)="setCash(account.id, $any($event.target))">
             </td>
           }
           <td></td>
         </tr>
-
+      </tbody>
+      <tbody cdkDropList cdkDropListLockAxis="y" (cdkDropListDropped)="reorder($event)">
         @for (inv of portfolio.investments(); track inv.ticker) {
-          <tr>
+          <tr cdkDrag cdkDragPreviewContainer="parent">
+            <td class="grip-col">
+              <span class="grip" cdkDragHandle title="Drag to reorder {{ inv.ticker }}" aria-hidden="true">⠿</span>
+            </td>
             <td class="left ticker">{{ inv.ticker }}</td>
             <td class="left">
               <input class="text" type="text" [value]="inv.category" [attr.aria-label]="inv.ticker + ' category'"
                      (change)="portfolio.setCategory(inv.ticker, $any($event.target).value)">
             </td>
             <td>
-              <input type="number" min="0" step="0.01" [value]="inv.price" [attr.aria-label]="inv.ticker + ' price'"
+              <input class="swatch" type="color" [value]="inv.color" [attr.aria-label]="inv.ticker + ' color'"
+                     title="Change {{ inv.ticker }} color"
+                     (input)="portfolio.setColor(inv.ticker, $any($event.target).value)">
+            </td>
+            <td>
+              <input type="text" inputmode="decimal" [value]="inv.price | currency" [attr.aria-label]="inv.ticker + ' price'"
+                     (focus)="unformatMoney($any($event.target))"
+                     (blur)="formatMoney($any($event.target))"
                      (change)="setPrice(inv.ticker, $any($event.target))">
             </td>
             @for (account of portfolio.accounts(); track account.id) {
               <td>
-                <input type="number" min="0" step="0.001" [value]="inv.shares[account.id]"
+                <input type="text" inputmode="decimal" [value]="inv.shares[account.id]"
                        [attr.aria-label]="inv.ticker + ' shares in ' + account.name"
+                       (input)="allowDecimalOnly($any($event.target))"
                        (change)="setShares(inv.ticker, account.id, $any($event.target))">
               </td>
             }
@@ -55,7 +73,7 @@
             </td>
           </tr>
         } @empty {
-          <tr><td class="left muted" [attr.colspan]="portfolio.accounts().length + 4">No investments yet. Add one below.</td></tr>
+          <tr><td class="left muted" [attr.colspan]="portfolio.accounts().length + 6">No investments yet. Add one below.</td></tr>
         }
       </tbody>
     </table>
@@ -74,6 +92,9 @@
 
   <div class="hsa">
     <label for="hsa">HSA balance</label>
-    <input id="hsa" type="number" min="0" step="0.01" [value]="portfolio.hsa()" (change)="setHsa($any($event.target))">
+    <input id="hsa" type="text" inputmode="decimal" [value]="portfolio.hsa() | currency"
+           (focus)="unformatMoney($any($event.target))"
+           (blur)="formatMoney($any($event.target))"
+           (change)="setHsa($any($event.target))">
   </div>
 </section>

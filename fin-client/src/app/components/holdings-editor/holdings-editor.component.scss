@@ -63,6 +63,43 @@ td {
   background: $ash-grey-50;
 }
 
+.grip-col {
+  width: 1%;
+  padding-right: 0;
+}
+
+.grip {
+  cursor: grab;
+  color: $air-force-blue-300;
+  font-size: 1.1rem;
+  user-select: none;
+
+  &:hover {
+    color: $dark-teal-600;
+  }
+}
+
+// Drag-and-drop states (Angular CDK)
+tr.cdk-drag-preview {
+  display: table;
+  background: white;
+  box-shadow: 0 4px 12px rgba($air-force-blue-900, 0.2);
+  cursor: grabbing;
+
+  td {
+    border-bottom: none;
+  }
+}
+
+tr.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+tr.cdk-drag-animating,
+.cdk-drop-list-dragging tr:not(.cdk-drag-placeholder) {
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
 input {
   font: inherit;
   color: inherit;
@@ -86,6 +123,42 @@ input {
   &.invalid {
     border-color: $error-red;
   }
+
+  &.swatch {
+    box-sizing: border-box;
+    width: 32px;
+    height: 24px;
+    padding: 2px;
+    cursor: pointer;
+    vertical-align: middle;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: 2px;
+    }
+
+    &::-moz-color-swatch {
+      border: none;
+      border-radius: 2px;
+    }
+  }
+}
+
+// Matches the swatch input's size; cash keeps the account cards' fixed cash color.
+.cash-swatch {
+  display: inline-block;
+  width: 32px;
+  height: 24px;
+  box-sizing: border-box;
+  border: 3px solid $ash-grey-50;
+  outline: 1px solid $ash-grey-200;
+  border-radius: 4px;
+  background: $ash-grey-300;
+  vertical-align: middle;
 }
 
 .icon-btn {

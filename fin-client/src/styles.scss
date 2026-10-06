@@ -6,3 +6,15 @@ body {
   color: $air-force-blue-800;
   font-family: 'Carlito', sans-serif;
 }
+
+/* Hide spinner arrows on number inputs */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

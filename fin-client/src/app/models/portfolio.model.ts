@@ -10,6 +10,8 @@ export interface Investment {
   ticker: string;
   category: string;
   price: number;
+  /** Hex color, e.g. `#2383a9`, used for the ticker's allocation bar segment and dot. */
+  color: string;
   shares: Record<AccountId, number>;
 }
 
@@ -17,6 +19,7 @@ export interface Position {
   ticker: string;
   category: string;
   price: number;
+  color: string;
   shares: number;
   value: number;
   percent: number;

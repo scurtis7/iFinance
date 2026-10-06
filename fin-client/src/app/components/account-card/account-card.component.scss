@@ -33,12 +33,8 @@ header {
   background: $ash-grey-100;
 }
 
-.seg-0 { background: $ash-grey-300; }
-.seg-1 { background: $dark-teal-600; }
-.seg-2 { background: $beige-500; }
-.seg-3 { background: $air-force-blue-500; }
-.seg-4 { background: $ink-black-400; }
-.seg-5 { background: $ash-grey-600; }
+// Ticker colors are user-chosen and set inline; cash always uses this one.
+.cash { background: $ash-grey-300; }
 
 .dot {
   display: inline-block;

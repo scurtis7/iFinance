@@ -5,9 +5,9 @@
   </header>
 
   <div class="bar" role="img" [attr.aria-label]="summary().account.name + ' allocation'">
-    @for (seg of segments(); track seg.label; let i = $index) {
+    @for (seg of segments(); track seg.label) {
       @if (seg.percent > 0) {
-        <span [class]="segmentClass(i)" [style.width.%]="seg.percent * 100" [title]="seg.label + ' ' + (seg.percent | percent:'1.2-2')"></span>
+        <span [class.cash]="!seg.color" [style.background]="seg.color" [style.width.%]="seg.percent * 100" [title]="seg.label + ' ' + (seg.percent | percent:'1.2-2')"></span>
       }
     }
   </div>
@@ -24,16 +24,16 @@
     </thead>
     <tbody>
       <tr>
-        <td class="left"><span class="dot" [class]="segmentClass(0)"></span>Cash</td>
+        <td class="left"><span class="dot cash"></span>Cash</td>
         <td></td>
         <td></td>
         <td>{{ summary().account.cash | currency }}</td>
         <td>{{ summary().cashPercent | percent:'1.2-2' }}</td>
       </tr>
-      @for (pos of summary().positions; track pos.ticker; let i = $index) {
+      @for (pos of summary().positions; track pos.ticker) {
         <tr>
           <td class="left">
-            <span class="dot" [class]="segmentClass(i + 1)"></span>
+            <span class="dot" [style.background]="pos.color"></span>
             <span class="ticker">{{ pos.ticker }}</span>
             <span class="category">{{ pos.category }}</span>
           </td>
