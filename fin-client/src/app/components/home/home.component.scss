@@ -1,0 +1,65 @@
+@import "../../../assets/styles/variables";
+
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+  padding: 20px 24px;
+  border-radius: 10px;
+  background: $air-force-blue-800;
+  color: $ash-grey-100;
+  //border: 1px solid red;
+}
+
+.label {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $dark-teal-200;
+}
+
+.amount {
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.tile {
+  min-width: 130px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba($air-force-blue-50, 0.08);
+
+  .value {
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+}
+
+.section-title {
+  margin: 0 0 -8px;
+  font-size: 1.3rem;
+}
+
+.accounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}

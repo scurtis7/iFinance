@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fin-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "fin-client", "start"],
+      "port": 4200
+    }
+  ]
+}

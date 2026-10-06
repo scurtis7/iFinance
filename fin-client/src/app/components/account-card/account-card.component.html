@@ -1,0 +1,52 @@
+<article class="card">
+  <header>
+    <h3>{{ summary().account.name }}</h3>
+    <span class="total">{{ summary().total | currency }}</span>
+  </header>
+
+  <div class="bar" role="img" [attr.aria-label]="summary().account.name + ' allocation'">
+    @for (seg of segments(); track seg.label; let i = $index) {
+      @if (seg.percent > 0) {
+        <span [class]="segmentClass(i)" [style.width.%]="seg.percent * 100" [title]="seg.label + ' ' + (seg.percent | percent:'1.2-2')"></span>
+      }
+    }
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th class="left">Holding</th>
+        <th>Price</th>
+        <th>Shares</th>
+        <th>Value</th>
+        <th>%</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="left"><span class="dot" [class]="segmentClass(0)"></span>Cash</td>
+        <td></td>
+        <td></td>
+        <td>{{ summary().account.cash | currency }}</td>
+        <td>{{ summary().cashPercent | percent:'1.2-2' }}</td>
+      </tr>
+      @for (pos of summary().positions; track pos.ticker; let i = $index) {
+        <tr>
+          <td class="left">
+            <span class="dot" [class]="segmentClass(i + 1)"></span>
+            <span class="ticker">{{ pos.ticker }}</span>
+            <span class="category">{{ pos.category }}</span>
+          </td>
+          <td>{{ pos.price | currency }}</td>
+          <td>{{ pos.shares | number:'1.0-3' }}</td>
+          <td>{{ pos.value | currency }}</td>
+          <td>{{ pos.percent | percent:'1.2-2' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (summary().positions.length === 0) {
+    <p class="empty">No investments held. Add shares in Holdings &amp; Cash.</p>
+  }
+</article>
