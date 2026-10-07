@@ -5,15 +5,15 @@ select * from financedb.finance.account;
 select * from financedb.finance.investment;
 select * from financedb.finance.position;
 
-select a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
+select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
     from financedb.finance.position p
     join finance.account a on a.account_id = p.account_id
     join finance.investment i on i.investment_id = p.investment_id;
 
-select a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
-    from financedb.finance.account a
-    join finance.position p on a.account_id = p.account_id
-    join finance.investment i on i.investment_id = p.investment_id;
+-- select a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
+--     from financedb.finance.account a
+--     join finance.position p on a.account_id = p.account_id
+--     join finance.investment i on i.investment_id = p.investment_id;
 
 /***********************************************************************
     Update scripts
