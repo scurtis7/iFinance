@@ -3,6 +3,7 @@ package com.scurtis.finance.controller;
 import com.scurtis.finance.dto.AccountDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
+import com.scurtis.finance.entity.AccountPosition;
 import com.scurtis.finance.service.FinanceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,5 +32,11 @@ public class FinanceController {
     public Flux<PositionDto> getAllPositions() {
         return financeService.getAllPositions();
     }
+
+    @GetMapping(value = "account_positions")
+    public Flux<AccountPosition> getAllAccountPositions() {
+        return financeService.getAllAccountPositions();
+    }
+
 
 }
