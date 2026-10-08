@@ -18,8 +18,8 @@ export interface Investment {
 export interface Position {
   ticker: string;
   category: string;
-  price: number;
   color: string;
+  price: number;
   shares: number;
   value: number;
   percent: number;

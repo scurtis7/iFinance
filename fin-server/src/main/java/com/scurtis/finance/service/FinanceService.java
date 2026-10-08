@@ -2,14 +2,12 @@ package com.scurtis.finance.service;
 
 import com.scurtis.finance.converter.FinanceConverter;
 import com.scurtis.finance.dto.AccountDto;
+import com.scurtis.finance.dto.AccountPositionDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
-import com.scurtis.finance.entity.AccountPosition;
 import com.scurtis.finance.repository.AccountRepository;
 import com.scurtis.finance.repository.InvestmentRepository;
 import com.scurtis.finance.repository.PositionRepository;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,8 +38,10 @@ public class FinanceService {
             .map(financeConverter::toDto);
     }
 
-    public Flux<AccountPosition> getAllAccountPositions() {
-        return positionRepository.getAllAccountPositions();
+    public Flux<AccountPositionDto> getAllAccountPositions() {
+        return accountRepository.getAllAccountPositions()
+            .collectList()
+            .flatMapIterable(financeConverter::toDtos);
     }
 
 }

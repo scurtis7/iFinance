@@ -5,16 +5,17 @@ select * from financedb.finance.account;
 select * from financedb.finance.investment;
 select * from financedb.finance.position;
 
-select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
-    from financedb.finance.position p
-    join finance.account a on a.account_id = p.account_id
-    join finance.investment i on i.investment_id = p.investment_id
-    order by a.account_id, i.investment_id;
+-- select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, p.sequence, p.shares
+--     from financedb.finance.position p
+--     join finance.account a on a.account_id = p.account_id
+--     join finance.investment i on i.investment_id = p.investment_id
+--     order by a.account_id, i.investment_id;
 
--- select a.name, a.cash, i.ticker, i.category, i.color, i.price, p.shares
---     from financedb.finance.account a
---     join finance.position p on a.account_id = p.account_id
---     join finance.investment i on i.investment_id = p.investment_id;
+select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, i.sequence, p.shares
+    from financedb.finance.account a
+    left join finance.position p on a.account_id = p.account_id
+    left join finance.investment i on i.investment_id = p.investment_id
+    order by a.account_id, i.investment_id;
 
 /***********************************************************************
     Update scripts
@@ -40,19 +41,23 @@ BEGIN;  -- Begin a transaction in case the entire script gets executed
 --            ('Traditional', 166872.61),
 --            ('Roth', 51989.58);
 
+    DROP TABLE IF EXISTS finance.position;
+    DROP TABLE IF EXISTS finance.investment;
     CREATE TABLE finance.investment (
         investment_id   SERIAL PRIMARY KEY,
         ticker          VARCHAR(32) UNIQUE NOT NULL,
         category        VARCHAR(64),
         color           VARCHAR(16),
         price           NUMERIC(7, 4),
+        sequence        INT,
         created_date    DATE DEFAULT CURRENT_DATE
     );
-    INSERT INTO finance.investment (ticker, category, color, price)
-    VALUES ('SCHD', 'Dividend', '#2383a9', 32.72),
-           ('SPMO', 'Growth', '#99c639', 153.23),
-           ('SPYM', 'Foundation', '#39c3f9', 90.60);
+    INSERT INTO finance.investment (ticker, category, color, price, sequence)
+    VALUES ('SCHD', 'Dividend', '#2383a9', 32.72, 1),
+           ('SPMO', 'Growth', '#99c639', 153.23, 2),
+           ('SPYM', 'Foundation', '#39c3f9', 90.60, 3);
 
+    --DROP TABLE IF EXISTS finance.position;
     CREATE TABLE finance.position (
         position_id     SERIAL PRIMARY KEY,
         account_id      INT,

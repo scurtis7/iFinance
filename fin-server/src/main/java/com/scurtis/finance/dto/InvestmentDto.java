@@ -17,5 +17,6 @@ public class InvestmentDto {
     private String category;
     private String color;
     private BigDecimal price;
+    private Integer sequence;
 
 }

@@ -23,6 +23,7 @@ public class Investment implements Persistable<Long> {
     private String category;
     private String color;
     private BigDecimal price;
+    private Integer sequence;
     @ReadOnlyProperty
     @Column(value = "created_date")
     private LocalDate creationDate;
