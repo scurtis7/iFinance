@@ -22,6 +22,10 @@ export interface PositionDto {
   shares: number | null;
 }
 
+export interface HsaDto {
+  balance: number | null;
+}
+
 // Request bodies. Fields left out of a PATCH keep their current value.
 
 export interface AccountChanges {

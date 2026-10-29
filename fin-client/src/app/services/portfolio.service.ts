@@ -22,8 +22,7 @@ export class PortfolioService {
 
   readonly accounts = signal<Account[]>([]);
   readonly investments = signal<Investment[]>([]);
-  // The server doesn't store the HSA balance yet.
-  readonly hsa = signal(18.15);
+  readonly hsa = signal(0);
 
   readonly loading = signal(false);
   readonly loadError = signal('');
@@ -57,17 +56,18 @@ export class PortfolioService {
     this.summaries().reduce((sum, s) => sum + s.total, 0) + this.hsa()
   );
 
-  /** Replaces accounts and investments with the server's. */
+  /** Replaces accounts, investments and the HSA balance with the server's. */
   load(): void {
     this.loading.set(true);
     this.loadError.set('');
-    forkJoin([this.api.getAccounts(), this.api.getInvestments(), this.api.getPositions()])
+    forkJoin([this.api.getAccounts(), this.api.getInvestments(), this.api.getPositions(), this.api.getHsa()])
       .pipe(finalize(() => this.loading.set(false)))
       .subscribe({
-        next: ([accountDtos, investmentDtos, positionDtos]) => {
+        next: ([accountDtos, investmentDtos, positionDtos, hsaDto]) => {
           const accounts = toAccounts(accountDtos);
           this.accounts.set(accounts);
           this.investments.set(toInvestments(investmentDtos, accounts, positionDtos));
+          this.hsa.set(hsaDto.balance ?? 0);
         },
         error: () => this.loadError.set('Couldn\'t load the portfolio from the server.')
       });
@@ -150,8 +150,17 @@ export class PortfolioService {
     );
   }
 
-  setHsa(value: number): void {
-    this.hsa.set(value);
+  setHsa(balance: number): void {
+    const previous = this.hsa();
+    if (previous === balance) {
+      return;
+    }
+    this.hsa.set(balance);
+    this.save(this.api.updateHsa(balance), () => {
+      if (this.hsa() === balance) {
+        this.hsa.set(previous);
+      }
+    }, 'Couldn\'t save the HSA balance.');
   }
 
   /**

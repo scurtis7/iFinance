@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { AccountDto, InvestmentDto, NewInvestment, PositionDto } from '../models/api.model';
+import { AccountDto, HsaDto, InvestmentDto, NewInvestment, PositionDto } from '../models/api.model';
 import { API_URL } from './finance-api.service';
 import { PortfolioService, TICKER_COLORS } from './portfolio.service';
 
@@ -31,12 +31,13 @@ describe('PortfolioService', () => {
   let service: PortfolioService;
   let http: HttpTestingController;
 
-  /** Calls load() and answers its three requests. */
-  const load = (svc: PortfolioService, accounts = ACCOUNTS, investments = INVESTMENTS, positions = POSITIONS) => {
+  /** Calls load() and answers its four requests. */
+  const load = (svc: PortfolioService, accounts = ACCOUNTS, investments = INVESTMENTS, positions = POSITIONS, hsa: HsaDto = { balance: 18.15 }) => {
     svc.load();
     http.expectOne(`${API}/accounts`).flush(accounts);
     http.expectOne(`${API}/investments`).flush(investments);
     http.expectOne(`${API}/positions`).flush(positions);
+    http.expectOne(`${API}/hsa`).flush(hsa);
   };
   const create = () => TestBed.runInInjectionContext(() => new PortfolioService());
   const tickers = (svc: PortfolioService) => svc.investments().map(i => i.ticker);
@@ -62,8 +63,9 @@ describe('PortfolioService', () => {
   afterEach(() => http.verify());
 
   describe('loading', () => {
-    it('loads accounts and gives every investment its id and shares in each account', () => {
+    it('loads accounts, the HSA balance, and every investment with its id and shares in each account', () => {
       expect(service.loading()).toBeFalse();
+      expect(service.hsa()).toBe(18.15);
       expect(service.accounts().map(a => a.name)).toEqual(['Brokerage', 'Traditional', 'Roth']);
       expect(investment(service, 'SCHD')).toEqual({
         id: 1, ticker: 'SCHD', category: 'Dividend', price: 32.72, color: '#2383a9', shares: { 1: 0, 2: 3016.075, 3: 503.215 }
@@ -93,7 +95,8 @@ describe('PortfolioService', () => {
         { positionId: 8, accountId: 1, investmentId: 4, shares: 3 },
         { positionId: 9, accountId: 2, investmentId: 4, shares: null },
         { positionId: 10, accountId: 99, investmentId: 4, shares: 7 }
-      ]);
+      ], { balance: null });
+      expect(svc.hsa()).toBe(0);
       expect(investment(svc, 'VTI')).toEqual({ id: 4, ticker: 'VTI', category: '', price: 0, color: TICKER_COLORS[2], shares: { 1: 5, 2: 0, 3: 0 } });
     });
 
@@ -103,6 +106,7 @@ describe('PortfolioService', () => {
       expect(svc.loading()).toBeTrue();
       http.expectOne(`${API}/accounts`).flush(ACCOUNTS);
       http.expectOne(`${API}/investments`).flush(INVESTMENTS);
+      http.expectOne(`${API}/hsa`).flush({ balance: 18.15 });
       http.expectOne(`${API}/positions`).flush('down', { status: 503, statusText: 'Service Unavailable' });
       expect(svc.loading()).toBeFalse();
       expect(svc.loadError()).not.toBe('');
@@ -160,6 +164,13 @@ describe('PortfolioService', () => {
       expect(expectRequest('PUT', '/positions').request.body).toEqual({ accountId: 1, investmentId: 1, shares: 10 });
     });
 
+    it('counts the HSA balance in the total and saves it', () => {
+      const totalWithoutHsa = service.grandTotal() - 18.15;
+      service.setHsa(25);
+      expect(service.grandTotal()).toBeCloseTo(totalWithoutHsa + 25, 6);
+      expect(expectRequest('PUT', '/hsa').request.body).toEqual({ balance: 25 });
+    });
+
     it('saves a trimmed category', () => {
       service.setCategory('SPMO', ' Momentum ');
       expect(investment(service, 'SPMO').category).toBe('Momentum');
@@ -171,6 +182,7 @@ describe('PortfolioService', () => {
       service.setPrice('SCHD', 32.72);
       service.setCategory('SCHD', ' Dividend ');
       service.setShares('SCHD', 2, 3016.075);
+      service.setHsa(18.15);
       service.removeInvestment('GONE');
       service.moveInvestment(1, 1);
       expect(investment(service, 'SCHD').category).toBe('Dividend');
@@ -193,6 +205,11 @@ describe('PortfolioService', () => {
       fail(expectRequest('PATCH', '/investments/2'));
       expect(investment(service, 'SPMO').category).toBe('Growth');
       expect(service.saveError()).toBe('Couldn\'t save the SPMO category.');
+
+      service.setHsa(25);
+      fail(expectRequest('PUT', '/hsa'));
+      expect(service.hsa()).toBe(18.15);
+      expect(service.saveError()).toBe('Couldn\'t save the HSA balance.');
     });
 
     it('keeps a newer edit when an older save fails', () => {

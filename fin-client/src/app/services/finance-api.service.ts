@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
-  AccountChanges, AccountDto, InvestmentChanges, InvestmentDto, NewInvestment, PositionDto, PositionShares
+  AccountChanges, AccountDto, HsaDto, InvestmentChanges, InvestmentDto, NewInvestment, PositionDto, PositionShares
 } from '../models/api.model';
 
 /** Base URL of fin-server. The server allows CORS from any origin, so the dev server calls it directly. */
@@ -30,6 +30,15 @@ export class FinanceApiService {
 
   getPositions(): Observable<PositionDto[]> {
     return this.http.get<PositionDto[]>(`${this.baseUrl}/positions`);
+  }
+
+  /** The balance is zero until one has been saved. */
+  getHsa(): Observable<HsaDto> {
+    return this.http.get<HsaDto>(`${this.baseUrl}/hsa`);
+  }
+
+  updateHsa(balance: number): Observable<HsaDto> {
+    return this.http.put<HsaDto>(`${this.baseUrl}/hsa`, { balance });
   }
 
   /** Has the server fetch a quote for every investment and save it, then returns all investments. */
