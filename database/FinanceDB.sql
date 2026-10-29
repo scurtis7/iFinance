@@ -4,6 +4,7 @@
 select * from finance.finance.account;
 select * from finance.finance.investment;
 select * from finance.finance.position;
+select * from finance.finance.hsa;
 
 -- select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, p.sequence, p.shares
 --     from finance.finance.position p
@@ -81,6 +82,16 @@ BEGIN;  -- Begin a transaction in case the entire script gets executed
            (3, 1, 503.215),
            (3, 2, 127.321),
            (3, 3, 100.268);
+
+--     DROP TABLE IF EXISTS finance.hsa;
+--     CREATE TABLE finance.hsa (
+--         hsa_id       SERIAL PRIMARY KEY,
+--         balance      NUMERIC(12, 4),
+--         created_date DATE DEFAULT CURRENT_DATE
+--     );
+--     INSERT INTO finance.hsa (balance)
+--     VALUES (18.15);
+
 
 
 ROLLBACK;   -- Rollback the transaction in case the entire script gets executed

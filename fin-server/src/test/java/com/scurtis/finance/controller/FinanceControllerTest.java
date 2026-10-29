@@ -2,12 +2,14 @@ package com.scurtis.finance.controller;
 
 import com.scurtis.finance.dto.AccountDto;
 import com.scurtis.finance.dto.AccountPositionDto;
+import com.scurtis.finance.dto.HsaDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
 import com.scurtis.finance.entity.Account;
 import com.scurtis.finance.entity.Investment;
 import com.scurtis.finance.entity.Position;
 import com.scurtis.finance.repository.AccountRepository;
+import com.scurtis.finance.repository.HsaRepository;
 import com.scurtis.finance.repository.InvestmentRepository;
 import com.scurtis.finance.repository.PositionRepository;
 import java.math.BigDecimal;
@@ -41,6 +43,8 @@ class FinanceControllerTest {
     private InvestmentRepository investmentRepository;
     @Autowired
     private PositionRepository positionRepository;
+    @Autowired
+    private HsaRepository hsaRepository;
 
     private WebTestClient client;
     private Account brokerage;
@@ -55,6 +59,7 @@ class FinanceControllerTest {
         positionRepository.deleteAll()
             .then(investmentRepository.deleteAll())
             .then(accountRepository.deleteAll())
+            .then(hsaRepository.deleteAll())
             .block();
         brokerage = accountRepository.save(account("Brokerage", "3819.69")).block();
         roth = accountRepository.save(account("Roth", "51989.58")).block();
@@ -207,6 +212,36 @@ class FinanceControllerTest {
         send(HttpMethod.PUT, "/positions", Map.of("accountId", roth.getId(), "investmentId", UNKNOWN_ID, "shares", 1)).expectStatus().isNotFound();
 
         assertThat(positionRepository.findById(rothSchd.getId()).block().getShares()).isEqualByComparingTo("503.215");
+    }
+
+    @Test
+    void getHsaIsZeroUntilABalanceIsSaved() {
+        HsaDto hsa = client.get().uri("/hsa").exchange()
+            .expectStatus().isOk()
+            .expectBody(HsaDto.class).returnResult().getResponseBody();
+
+        assertThat(hsa.getBalance()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void putHsaKeepsTheBalanceInOneRow() {
+        send(HttpMethod.PUT, "/hsa", Map.of("balance", 18.15)).expectStatus().isOk();
+        HsaDto saved = send(HttpMethod.PUT, "/hsa", Map.of("balance", 25))
+            .expectStatus().isOk()
+            .expectBody(HsaDto.class).returnResult().getResponseBody();
+
+        assertThat(saved.getBalance()).isEqualByComparingTo("25");
+        assertThat(hsaRepository.count().block()).isEqualTo(1);
+        assertThat(client.get().uri("/hsa").exchange().expectBody(HsaDto.class).returnResult().getResponseBody().getBalance())
+            .isEqualByComparingTo("25");
+    }
+
+    @Test
+    void putHsaRejectsMissingOrNegativeBalances() {
+        send(HttpMethod.PUT, "/hsa", Map.of()).expectStatus().isBadRequest();
+        send(HttpMethod.PUT, "/hsa", Map.of("balance", -1)).expectStatus().isBadRequest();
+
+        assertThat(hsaRepository.count().block()).isZero();
     }
 
     private <T> List<T> getList(String uri, Class<T> type) {

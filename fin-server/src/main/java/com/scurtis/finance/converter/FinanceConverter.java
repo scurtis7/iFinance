@@ -2,11 +2,13 @@ package com.scurtis.finance.converter;
 
 import com.scurtis.finance.dto.AccountDto;
 import com.scurtis.finance.dto.AccountPositionDto;
+import com.scurtis.finance.dto.HsaDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.InvestmentPositionDto;
 import com.scurtis.finance.dto.PositionDto;
 import com.scurtis.finance.entity.Account;
 import com.scurtis.finance.entity.AccountPosition;
+import com.scurtis.finance.entity.Hsa;
 import com.scurtis.finance.entity.Investment;
 import com.scurtis.finance.entity.Position;
 import java.util.ArrayList;
@@ -28,6 +30,10 @@ public class FinanceConverter {
 
     public PositionDto toDto(Position position) {
         return new PositionDto(position.getId(), position.getAccountId(), position.getInvestmentId(), position.getShares());
+    }
+
+    public HsaDto toDto(Hsa hsa) {
+        return new HsaDto(hsa.getBalance());
     }
 
     public List<AccountPositionDto> toDtos(List<AccountPosition> accountPositions) {

@@ -3,11 +3,14 @@ package com.scurtis.finance.service;
 import com.scurtis.finance.converter.FinanceConverter;
 import com.scurtis.finance.dto.AccountDto;
 import com.scurtis.finance.dto.AccountPositionDto;
+import com.scurtis.finance.dto.HsaDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
+import com.scurtis.finance.entity.Hsa;
 import com.scurtis.finance.entity.Investment;
 import com.scurtis.finance.entity.Position;
 import com.scurtis.finance.repository.AccountRepository;
+import com.scurtis.finance.repository.HsaRepository;
 import com.scurtis.finance.repository.InvestmentRepository;
 import com.scurtis.finance.repository.PositionRepository;
 import java.math.BigDecimal;
@@ -35,6 +38,7 @@ public class FinanceService {
     private final AccountRepository accountRepository;
     private final InvestmentRepository investmentRepository;
     private final PositionRepository positionRepository;
+    private final HsaRepository hsaRepository;
     private final FinanceConverter financeConverter;
 
     public Flux<AccountDto> getAllAccounts() {
@@ -156,6 +160,31 @@ public class FinanceService {
             .flatMap(position -> {
                 position.setShares(request.getShares());
                 return positionRepository.save(position);
+            })
+            .map(financeConverter::toDto);
+    }
+
+    /**
+     * Returns the HSA balance, which is zero until one has been saved.
+     */
+    public Mono<HsaDto> getHsa() {
+        return hsaRepository.findFirstByOrderByIdAsc()
+            .map(financeConverter::toDto)
+            .defaultIfEmpty(new HsaDto(BigDecimal.ZERO));
+    }
+
+    /**
+     * Sets the HSA balance, adding the row that holds it if there isn't one yet.
+     */
+    public Mono<HsaDto> updateHsa(HsaDto request) {
+        if (request.getBalance() == null || request.getBalance().signum() < 0) {
+            return Mono.error(badRequest("balance must be zero or more"));
+        }
+        return hsaRepository.findFirstByOrderByIdAsc()
+            .defaultIfEmpty(new Hsa())
+            .flatMap(hsa -> {
+                hsa.setBalance(request.getBalance());
+                return hsaRepository.save(hsa);
             })
             .map(financeConverter::toDto);
     }

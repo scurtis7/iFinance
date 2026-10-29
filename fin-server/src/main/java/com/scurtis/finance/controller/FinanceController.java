@@ -2,6 +2,7 @@ package com.scurtis.finance.controller;
 
 import com.scurtis.finance.dto.AccountDto;
 import com.scurtis.finance.dto.AccountPositionDto;
+import com.scurtis.finance.dto.HsaDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
 import com.scurtis.finance.service.FinanceService;
@@ -85,6 +86,16 @@ public class FinanceController {
     @PutMapping(value = "positions")
     public Mono<PositionDto> savePosition(@RequestBody PositionDto position) {
         return financeService.savePosition(position);
+    }
+
+    @GetMapping(value = "hsa")
+    public Mono<HsaDto> getHsa() {
+        return financeService.getHsa();
+    }
+
+    @PutMapping(value = "hsa")
+    public Mono<HsaDto> updateHsa(@RequestBody HsaDto hsa) {
+        return financeService.updateHsa(hsa);
     }
 
 }
