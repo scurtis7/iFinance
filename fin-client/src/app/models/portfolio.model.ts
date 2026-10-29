@@ -1,4 +1,5 @@
-export type AccountId = 'brokerage' | 'traditional' | 'roth';
+/** The server's `accountId`. */
+export type AccountId = number;
 
 export interface Account {
   id: AccountId;

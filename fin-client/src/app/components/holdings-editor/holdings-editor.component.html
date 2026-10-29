@@ -9,7 +9,15 @@
     </h2>
     @if (expanded) {
       <span class="hint">Edit cash, price and shares. Everything else is calculated.</span>
-      <button class="primary-btn add-btn" type="button" (click)="openAdd(addDialog, ticker)">+ Add investment</button>
+      @if (portfolio.refreshError()) {
+        <span class="error" role="alert">{{ portfolio.refreshError() }}</span>
+      }
+      <div class="actions">
+        <button class="secondary-btn" type="button" [disabled]="portfolio.refreshingPrices()" (click)="portfolio.refreshPrices()">
+          {{ portfolio.refreshingPrices() ? 'Refreshing…' : 'Refresh prices' }}
+        </button>
+        <button class="primary-btn" type="button" (click)="openAdd(addDialog, ticker)">+ Add investment</button>
+      </div>
     }
   </div>
 

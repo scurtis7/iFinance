@@ -1,29 +1,38 @@
 <div class="page">
-  <section class="summary">
-    <div class="net-worth">
-      <span class="label">Total Portfolio</span>
-      <span class="amount">{{ portfolio.grandTotal() | currency }}</span>
-    </div>
-    <div class="tiles">
-      @for (s of portfolio.summaries(); track s.account.id) {
-        <div class="tile">
-          <span class="label">{{ s.account.name }}</span>
-          <span class="value">{{ s.total | currency }}</span>
-        </div>
-      }
-      <div class="tile">
-        <span class="label">HSA</span>
-        <span class="value">{{ portfolio.hsa() | currency }}</span>
+  @if (portfolio.loadError()) {
+    <p class="status error" role="alert">
+      {{ portfolio.loadError() }}
+      <button class="retry-btn" type="button" (click)="portfolio.load()">Retry</button>
+    </p>
+  } @else if (portfolio.loading()) {
+    <p class="status" role="status">Loading portfolio…</p>
+  } @else {
+    <section class="summary">
+      <div class="net-worth">
+        <span class="label">Total Portfolio</span>
+        <span class="amount">{{ portfolio.grandTotal() | currency }}</span>
       </div>
+      <div class="tiles">
+        @for (s of portfolio.summaries(); track s.account.id) {
+          <div class="tile">
+            <span class="label">{{ s.account.name }}</span>
+            <span class="value">{{ s.total | currency }}</span>
+          </div>
+        }
+        <div class="tile">
+          <span class="label">HSA</span>
+          <span class="value">{{ portfolio.hsa() | currency }}</span>
+        </div>
+      </div>
+    </section>
+
+    <app-holdings-editor></app-holdings-editor>
+
+    <h2 class="section-title">Accounts</h2>
+    <div class="accounts" #accounts>
+      @for (s of portfolio.summaries(); track s.account.id) {
+        <app-account-card [summary]="s"></app-account-card>
+      }
     </div>
-  </section>
-
-  <app-holdings-editor></app-holdings-editor>
-
-  <h2 class="section-title">Accounts</h2>
-  <div class="accounts" #accounts>
-    @for (s of portfolio.summaries(); track s.account.id) {
-      <app-account-card [summary]="s"></app-account-card>
-    }
-  </div>
+  }
 </div>

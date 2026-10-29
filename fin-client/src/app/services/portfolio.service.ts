@@ -1,7 +1,9 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { finalize, forkJoin } from 'rxjs';
+import { AccountDto, InvestmentDto, PositionDto } from '../models/api.model';
 import { Account, AccountId, AccountSummary, Investment } from '../models/portfolio.model';
+import { FinanceApiService } from './finance-api.service';
 
-export const ACCOUNT_IDS: AccountId[] = ['brokerage', 'traditional', 'roth'];
 export const HOLDINGS_ORDER_KEY = 'ifinance.holdingsOrder';
 export const HOLDINGS_COLORS_KEY = 'ifinance.holdingsColors';
 
@@ -16,20 +18,17 @@ export const TICKER_COLORS = ['#2383a9', '#99c639', '#618e9e', '#39c3f9', '#5775
 })
 export class PortfolioService {
 
-  // Seed data mirrors the current spreadsheet until the server API exists.
-  readonly accounts = signal<Account[]>([
-    { id: 'brokerage', name: 'Brokerage', cash: 3819.69 },
-    { id: 'traditional', name: 'Traditional', cash: 166872.61 },
-    { id: 'roth', name: 'Roth', cash: 51989.58 }
-  ]);
+  private readonly api = inject(FinanceApiService);
 
-  readonly investments = signal<Investment[]>(applySavedColors(applySavedOrder([
-    { ticker: 'SPYM', category: 'Foundation', price: 90.60, color: TICKER_COLORS[0], shares: { brokerage: 0, traditional: 501.338, roth: 100.268 } },
-    { ticker: 'SCHD', category: 'Dividend', price: 32.72, color: TICKER_COLORS[1], shares: { brokerage: 0, traditional: 3016.075, roth: 503.215 } },
-    { ticker: 'SPMO', category: 'Growth', price: 153.23, color: TICKER_COLORS[2], shares: { brokerage: 0, traditional: 227.321, roth: 127.321 } }
-  ])));
-
+  readonly accounts = signal<Account[]>([]);
+  readonly investments = signal<Investment[]>([]);
+  // The server doesn't store the HSA balance yet.
   readonly hsa = signal(18.15);
+
+  readonly loading = signal(false);
+  readonly loadError = signal('');
+  readonly refreshingPrices = signal(false);
+  readonly refreshError = signal('');
 
   readonly summaries = computed<AccountSummary[]>(() =>
     this.accounts().map(account => {
@@ -56,6 +55,43 @@ export class PortfolioService {
   readonly grandTotal = computed(() =>
     this.summaries().reduce((sum, s) => sum + s.total, 0) + this.hsa()
   );
+
+  /**
+   * Replaces accounts and investments with the server's. Edits aren't sent to the server yet, so loading
+   * again discards them; a saved ticker order and saved colors still override the server's.
+   */
+  load(): void {
+    this.loading.set(true);
+    this.loadError.set('');
+    forkJoin([this.api.getAccounts(), this.api.getInvestments(), this.api.getPositions()])
+      .pipe(finalize(() => this.loading.set(false)))
+      .subscribe({
+        next: ([accountDtos, investmentDtos, positionDtos]) => {
+          const accounts = toAccounts(accountDtos);
+          this.accounts.set(accounts);
+          this.investments.set(applySavedColors(applySavedOrder(toInvestments(investmentDtos, accounts, positionDtos))));
+        },
+        error: () => this.loadError.set('Couldn\'t load the portfolio from the server.')
+      });
+  }
+
+  /** Has the server fetch current quotes, then updates the price of each ticker it returns. */
+  refreshPrices(): void {
+    this.refreshingPrices.set(true);
+    this.refreshError.set('');
+    this.api.refreshPrices()
+      .pipe(finalize(() => this.refreshingPrices.set(false)))
+      .subscribe({
+        next: dtos => {
+          const prices = new Map(dtos.filter(dto => dto.price !== null).map(dto => [dto.ticker, dto.price as number]));
+          this.investments.update(list => list.map(inv => {
+            const price = prices.get(inv.ticker);
+            return price === undefined ? inv : { ...inv, price };
+          }));
+        },
+        error: () => this.refreshError.set('Couldn\'t refresh prices.')
+      });
+  }
 
   setCash(id: AccountId, cash: number): void {
     this.accounts.update(accounts => accounts.map(a => (a.id === id ? { ...a, cash } : a)));
@@ -94,7 +130,7 @@ export class PortfolioService {
     }
     this.investments.update(list => [
       ...list,
-      { ticker: symbol, category: category.trim(), price, color: this.nextDefaultColor(), shares: { brokerage: 0, traditional: 0, roth: 0 } }
+      { ticker: symbol, category: category.trim(), price, color: nextDefaultColor(list), shares: noShares(this.accounts()) }
     ]);
     this.saveOrder();
     this.saveColors();
@@ -120,12 +156,6 @@ export class PortfolioService {
     this.saveOrder();
   }
 
-  /** The first default color no ticker is using, or the next one in rotation once they're all taken. */
-  private nextDefaultColor(): string {
-    const used = new Set(this.investments().map(inv => inv.color));
-    return TICKER_COLORS.find(color => !used.has(color)) ?? TICKER_COLORS[this.investments().length % TICKER_COLORS.length];
-  }
-
   private saveOrder(): void {
     writeStored(HOLDINGS_ORDER_KEY, this.investments().map(inv => inv.ticker));
   }
@@ -137,6 +167,45 @@ export class PortfolioService {
   private updateInvestment(ticker: string, change: (inv: Investment) => Investment): void {
     this.investments.update(list => list.map(inv => (inv.ticker === ticker ? change(inv) : inv)));
   }
+}
+
+function toAccounts(dtos: AccountDto[]): Account[] {
+  return [...dtos]
+    .sort((a, b) => a.accountId - b.accountId)
+    .map(dto => ({ id: dto.accountId, name: dto.name, cash: dto.cash ?? 0 }));
+}
+
+/** Orders investments by sequence (unsequenced last) and gives each its shares in every account. */
+function toInvestments(dtos: InvestmentDto[], accounts: Account[], positions: PositionDto[]): Investment[] {
+  const lastIfNull = (sequence: number | null) => sequence ?? Number.MAX_SAFE_INTEGER;
+  const investments = [...dtos]
+    .sort((a, b) => lastIfNull(a.sequence) - lastIfNull(b.sequence) || a.investmentId - b.investmentId)
+    .map(dto => {
+      const shares = noShares(accounts);
+      positions
+        .filter(p => p.investmentId === dto.investmentId && p.accountId in shares)
+        .forEach(p => (shares[p.accountId] += p.shares ?? 0));
+      return {
+        ticker: dto.ticker,
+        category: dto.category ?? '',
+        price: dto.price ?? 0,
+        color: isHexColor(dto.color) ? dto.color.toLowerCase() : '',
+        shares
+      };
+    });
+  // Fill in missing colors one at a time so each picks a default the others aren't using.
+  investments.filter(inv => !inv.color).forEach(inv => (inv.color = nextDefaultColor(investments)));
+  return investments;
+}
+
+function noShares(accounts: Account[]): Record<AccountId, number> {
+  return Object.fromEntries(accounts.map(account => [account.id, 0]));
+}
+
+/** The first default color none of the investments use, or the next one in rotation once they're all taken. */
+function nextDefaultColor(investments: Investment[]): string {
+  const used = new Set(investments.map(inv => inv.color));
+  return TICKER_COLORS.find(color => !used.has(color)) ?? TICKER_COLORS[investments.length % TICKER_COLORS.length];
 }
 
 /** Sorts investments by the saved ticker order; tickers without a saved position keep their order at the end. */

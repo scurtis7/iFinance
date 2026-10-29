@@ -65,3 +65,33 @@
   grid-template-columns: repeat(auto-fill, minmax(max(340px, var(--card-min-width, 0px)), 1fr));
   gap: 20px;
 }
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 1px 3px rgba($air-force-blue-900, 0.12);
+  color: $air-force-blue-500;
+
+  &.error {
+    color: $error-red;
+  }
+}
+
+.retry-btn {
+  font: inherit;
+  padding: 4px 14px;
+  border: 1px solid $ash-grey-300;
+  border-radius: 4px;
+  background: white;
+  color: $air-force-blue-800;
+  cursor: pointer;
+
+  &:hover {
+    background: $ash-grey-50;
+  }
+}
