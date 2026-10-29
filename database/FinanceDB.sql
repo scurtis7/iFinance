@@ -1,18 +1,18 @@
 /***********************************************************************
     Finance Database SQL Scripts
 ************************************************************************/
-select * from financedb.finance.account;
-select * from financedb.finance.investment;
-select * from financedb.finance.position;
+select * from finance.finance.account;
+select * from finance.finance.investment;
+select * from finance.finance.position;
 
 -- select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, p.sequence, p.shares
---     from financedb.finance.position p
+--     from finance.finance.position p
 --     join finance.account a on a.account_id = p.account_id
 --     join finance.investment i on i.investment_id = p.investment_id
 --     order by a.account_id, i.investment_id;
 
 select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i.category, i.color, i.price, i.sequence, p.shares
-    from financedb.finance.account a
+    from finance.finance.account a
     left join finance.position p on a.account_id = p.account_id
     left join finance.investment i on i.investment_id = p.investment_id
     order by a.account_id, i.investment_id;
@@ -22,8 +22,8 @@ select a.account_id, i.investment_id, p.position_id, a.name, a.cash, i.ticker, i
 ************************************************************************/
 BEGIN;  -- Begin a transaction in case the entire script gets executed
 
---     drop database financedb;
---     create database financedb;
+--     drop database finance;
+--     create database finance;
 --     CREATE SCHEMA IF NOT EXISTS "finance";
 
 --     DROP TABLE IF EXISTS finance.position;
