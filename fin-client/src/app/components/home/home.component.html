@@ -21,7 +21,7 @@
   <app-holdings-editor></app-holdings-editor>
 
   <h2 class="section-title">Accounts</h2>
-  <div class="accounts">
+  <div class="accounts" #accounts>
     @for (s of portfolio.summaries(); track s.account.id) {
       <app-account-card [summary]="s"></app-account-card>
     }

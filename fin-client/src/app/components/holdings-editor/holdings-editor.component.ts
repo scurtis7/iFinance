@@ -24,6 +24,8 @@ export class HoldingsEditorComponent {
     if (!Number.isNaN(value)) {
       input.value = String(value);
     }
+    // Replacing the value clears the selection the browser made on focus, so restore it.
+    input.select();
   }
 
   /** Restores the currency format when a currency field loses focus. */

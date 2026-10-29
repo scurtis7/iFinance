@@ -58,8 +58,10 @@
   font-size: 1.3rem;
 }
 
+// Every column is as wide as the widest card's content (--card-min-width, set by HomeComponent), so cards
+// never squeeze their tables and a card that wraps to the last row keeps the same width as the rest.
 .accounts {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(max(340px, var(--card-min-width, 0px)), 1fr));
   gap: 20px;
 }

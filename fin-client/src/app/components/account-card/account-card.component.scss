@@ -1,5 +1,18 @@
 @import "../../../assets/styles/variables";
 
+:host {
+  display: block;
+}
+
+// While HomeComponent measures, the card shrinks to its natural content width.
+:host-context(.measuring) {
+  width: max-content;
+
+  table {
+    width: max-content;
+  }
+}
+
 .card {
   background: white;
   border-radius: 10px;
