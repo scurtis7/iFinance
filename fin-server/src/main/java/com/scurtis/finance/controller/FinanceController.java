@@ -5,9 +5,11 @@ import com.scurtis.finance.dto.AccountPositionDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
 import com.scurtis.finance.service.FinanceService;
+import com.scurtis.finance.service.StockService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
@@ -17,6 +19,7 @@ import reactor.core.publisher.Flux;
 public class FinanceController {
 
     private final FinanceService financeService;
+    private final StockService stockService;
 
     @GetMapping(value = "accounts")
     public Flux<AccountDto> getAllAccounts() {
@@ -28,6 +31,11 @@ public class FinanceController {
         return financeService.getAllInvestments();
     }
 
+    @PostMapping(value = "investments/prices/refresh")
+    public Flux<InvestmentDto> refreshInvestmentPrices() {
+        return stockService.refreshPrices();
+    }
+
     @GetMapping(value = "positions")
     public Flux<PositionDto> getAllPositions() {
         return financeService.getAllPositions();
@@ -37,6 +45,5 @@ public class FinanceController {
     public Flux<AccountPositionDto> getAllAccountPositions() {
         return financeService.getAllAccountPositions();
     }
-
 
 }

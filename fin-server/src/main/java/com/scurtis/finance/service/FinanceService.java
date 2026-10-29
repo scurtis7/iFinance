@@ -8,14 +8,14 @@ import com.scurtis.finance.dto.PositionDto;
 import com.scurtis.finance.repository.AccountRepository;
 import com.scurtis.finance.repository.InvestmentRepository;
 import com.scurtis.finance.repository.PositionRepository;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
 @Slf4j
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class FinanceService {
 
     private final AccountRepository accountRepository;

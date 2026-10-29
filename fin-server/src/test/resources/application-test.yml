@@ -8,3 +8,7 @@ spring:
 
 scurtis:
   app-version: test
+  stock:
+    provider: finnhub
+    finnhub-api-key: finnhub-key
+    alpha-vantage-api-key: alpha-key
