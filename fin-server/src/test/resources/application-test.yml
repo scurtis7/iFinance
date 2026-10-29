@@ -2,9 +2,12 @@
 
 spring:
   r2dbc:
-    url: r2dbc:h2:mem://./testDb
+    url: r2dbc:h2:mem://./testDb?options=DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE
     username: sa
     password: sa
+  sql:
+    init:
+      mode: always
 
 scurtis:
   app-version: test
