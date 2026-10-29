@@ -8,6 +8,8 @@ export interface Account {
 }
 
 export interface Investment {
+  /** The server's `investmentId`. */
+  id: number;
   ticker: string;
   category: string;
   price: number;

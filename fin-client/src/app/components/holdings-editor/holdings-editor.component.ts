@@ -1,6 +1,7 @@
 import { Component, inject, LOCALE_ID } from '@angular/core';
 import { CurrencyPipe, formatCurrency } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
+import { finalize } from 'rxjs';
 import { AccountId } from '../../models/portfolio.model';
 import { PortfolioService } from '../../services/portfolio.service';
 
@@ -17,6 +18,8 @@ export class HoldingsEditorComponent {
   /** Whether the section body is shown; open by default on page load. */
   expanded = true;
   addError = '';
+  /** True while the server is adding an investment, so Add can't be pressed twice. */
+  adding = false;
 
   /** Shows the raw number while a currency field is being edited. */
   unformatMoney(input: HTMLInputElement): void {
@@ -95,11 +98,13 @@ export class HoldingsEditorComponent {
       this.addError = 'Enter a ticker and a valid price.';
       return;
     }
-    if (!this.portfolio.addInvestment(ticker.value, category.value, value)) {
-      this.addError = `${ticker.value.trim().toUpperCase()} is already in the list.`;
-      return;
-    }
-    dialog.close();
+    this.adding = true;
+    this.portfolio.addInvestment(ticker.value, category.value, value)
+      .pipe(finalize(() => (this.adding = false)))
+      .subscribe({
+        next: () => dialog.close(),
+        error: (error: Error) => (this.addError = error.message)
+      });
   }
 
   reorder(event: CdkDragDrop<unknown>): void {

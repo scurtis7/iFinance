@@ -1,9 +1,9 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { AccountDto, InvestmentDto, PositionDto } from '../models/api.model';
+import { AccountDto, InvestmentDto, NewInvestment, PositionDto } from '../models/api.model';
 import { API_URL } from './finance-api.service';
-import { HOLDINGS_COLORS_KEY, HOLDINGS_ORDER_KEY, PortfolioService, TICKER_COLORS } from './portfolio.service';
+import { PortfolioService, TICKER_COLORS } from './portfolio.service';
 
 const API = 'http://api.test';
 
@@ -41,10 +41,16 @@ describe('PortfolioService', () => {
   const create = () => TestBed.runInInjectionContext(() => new PortfolioService());
   const tickers = (svc: PortfolioService) => svc.investments().map(i => i.ticker);
   const investment = (svc: PortfolioService, ticker: string) => svc.investments().find(i => i.ticker === ticker)!;
+  const expectRequest = (method: string, path: string): TestRequest => http.expectOne({ method, url: `${API}${path}` });
+  const fail = (request: TestRequest) => request.flush('rejected', { status: 500, statusText: 'Server Error' });
+  /** Adds a ticker and answers the POST the way the server does, echoing the request with a new id. */
+  const add = (ticker: string, investmentId: number) => {
+    service.addInvestment(ticker, '', 1).subscribe();
+    const request = expectRequest('POST', '/investments');
+    request.flush({ ...(request.request.body as NewInvestment), investmentId, sequence: investmentId });
+  };
 
   beforeEach(() => {
-    localStorage.removeItem(HOLDINGS_ORDER_KEY);
-    localStorage.removeItem(HOLDINGS_COLORS_KEY);
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), { provide: API_URL, useValue: API }]
     });
@@ -53,163 +59,250 @@ describe('PortfolioService', () => {
     load(service);
   });
 
-  afterEach(() => {
-    http.verify();
-    localStorage.removeItem(HOLDINGS_ORDER_KEY);
-    localStorage.removeItem(HOLDINGS_COLORS_KEY);
-  });
+  afterEach(() => http.verify());
 
-  it('loads accounts and gives every investment its shares in each account', () => {
-    expect(service.loading()).toBeFalse();
-    expect(service.accounts().map(a => a.name)).toEqual(['Brokerage', 'Traditional', 'Roth']);
-    expect(investment(service, 'SCHD')).toEqual({
-      ticker: 'SCHD', category: 'Dividend', price: 32.72, color: '#2383a9', shares: { 1: 0, 2: 3016.075, 3: 503.215 }
+  describe('loading', () => {
+    it('loads accounts and gives every investment its id and shares in each account', () => {
+      expect(service.loading()).toBeFalse();
+      expect(service.accounts().map(a => a.name)).toEqual(['Brokerage', 'Traditional', 'Roth']);
+      expect(investment(service, 'SCHD')).toEqual({
+        id: 1, ticker: 'SCHD', category: 'Dividend', price: 32.72, color: '#2383a9', shares: { 1: 0, 2: 3016.075, 3: 503.215 }
+      });
+    });
+
+    it('matches the spreadsheet totals for the database rows', () => {
+      const totals = service.summaries().map(s => s.total);
+      expect(totals[0]).toBeCloseTo(3819.69, 2);
+      expect(totals[1]).toBeCloseTo(345812.20, 1);
+      expect(totals[2]).toBeCloseTo(97048.45, 1);
+      expect(service.grandTotal()).toBeCloseTo(446698.50, 0);
+    });
+
+    it('sorts accounts by id and investments by sequence, unsequenced last', () => {
+      const svc = create();
+      load(svc, [...ACCOUNTS].reverse(), [{ ...INVESTMENTS[0], sequence: null }, INVESTMENTS[2], INVESTMENTS[1]]);
+      expect(svc.accounts().map(a => a.id)).toEqual([1, 2, 3]);
+      expect(tickers(svc)).toEqual(['SPMO', 'SPYM', 'SCHD']);
+    });
+
+    it('fills in missing values and sums duplicate positions', () => {
+      const svc = create();
+      load(svc, ACCOUNTS, [...INVESTMENTS, { investmentId: 4, ticker: 'VTI', category: null, color: null, price: null, sequence: null }], [
+        ...POSITIONS,
+        { positionId: 7, accountId: 1, investmentId: 4, shares: 2 },
+        { positionId: 8, accountId: 1, investmentId: 4, shares: 3 },
+        { positionId: 9, accountId: 2, investmentId: 4, shares: null },
+        { positionId: 10, accountId: 99, investmentId: 4, shares: 7 }
+      ]);
+      expect(investment(svc, 'VTI')).toEqual({ id: 4, ticker: 'VTI', category: '', price: 0, color: TICKER_COLORS[2], shares: { 1: 5, 2: 0, 3: 0 } });
+    });
+
+    it('reports a failed load and clears the error when a retry succeeds', () => {
+      const svc = create();
+      svc.load();
+      expect(svc.loading()).toBeTrue();
+      http.expectOne(`${API}/accounts`).flush(ACCOUNTS);
+      http.expectOne(`${API}/investments`).flush(INVESTMENTS);
+      http.expectOne(`${API}/positions`).flush('down', { status: 503, statusText: 'Service Unavailable' });
+      expect(svc.loading()).toBeFalse();
+      expect(svc.loadError()).not.toBe('');
+      expect(svc.investments()).toEqual([]);
+
+      load(svc);
+      expect(svc.loadError()).toBe('');
+      expect(tickers(svc)).toEqual(['SCHD', 'SPMO', 'SPYM']);
+    });
+
+    it('only lists positions with shares in the account', () => {
+      const brokerage = service.summaries().find(s => s.account.id === 1)!;
+      expect(brokerage.positions.length).toBe(0);
+      expect(brokerage.cashPercent).toBe(1);
     });
   });
 
-  it('matches the spreadsheet totals for the database rows', () => {
-    const totals = service.summaries().map(s => s.total);
-    expect(totals[0]).toBeCloseTo(3819.69, 2);
-    expect(totals[1]).toBeCloseTo(345812.20, 1);
-    expect(totals[2]).toBeCloseTo(97048.45, 1);
-    expect(service.grandTotal()).toBeCloseTo(446698.50, 0);
+  describe('refreshing prices', () => {
+    it('updates the price of each ticker the server returns', () => {
+      service.removeInvestment('SPYM');
+      expectRequest('DELETE', '/investments/3').flush(null);
+      service.refreshPrices();
+      expect(service.refreshingPrices()).toBeTrue();
+      expectRequest('POST', '/investments/prices/refresh').flush([
+        { ...INVESTMENTS[0], price: 35.42 },
+        { ...INVESTMENTS[1], price: null },
+        { ...INVESTMENTS[2], price: 90.47 }
+      ]);
+      expect(service.refreshingPrices()).toBeFalse();
+      expect(investment(service, 'SCHD').price).toBe(35.42);
+      expect(investment(service, 'SPMO').price).toBe(153.23);
+      expect(tickers(service)).toEqual(['SCHD', 'SPMO']);
+    });
+
+    it('reports a failed refresh without changing prices', () => {
+      service.refreshPrices();
+      fail(expectRequest('POST', '/investments/prices/refresh'));
+      expect(service.refreshingPrices()).toBeFalse();
+      expect(service.refreshError()).not.toBe('');
+      expect(investment(service, 'SCHD').price).toBe(32.72);
+    });
   });
 
-  it('sorts accounts by id and investments by sequence, unsequenced last', () => {
-    const svc = create();
-    load(svc, [...ACCOUNTS].reverse(), [{ ...INVESTMENTS[0], sequence: null }, INVESTMENTS[2], INVESTMENTS[1]]);
-    expect(svc.accounts().map(a => a.id)).toEqual([1, 2, 3]);
-    expect(tickers(svc)).toEqual(['SPMO', 'SPYM', 'SCHD']);
+  describe('saving edits', () => {
+    it('shows cash, price and shares changes right away and saves each one', () => {
+      service.setCash(1, 600);
+      service.setPrice('SCHD', 40);
+      service.setShares('SCHD', 1, 10);
+      const brokerage = service.summaries().find(s => s.account.id === 1)!;
+      expect(brokerage.total).toBe(1000);
+      expect(brokerage.positions[0].percent).toBeCloseTo(0.4);
+
+      expect(expectRequest('PATCH', '/accounts/1').request.body).toEqual({ cash: 600 });
+      expect(expectRequest('PATCH', '/investments/1').request.body).toEqual({ price: 40 });
+      expect(expectRequest('PUT', '/positions').request.body).toEqual({ accountId: 1, investmentId: 1, shares: 10 });
+    });
+
+    it('saves a trimmed category', () => {
+      service.setCategory('SPMO', ' Momentum ');
+      expect(investment(service, 'SPMO').category).toBe('Momentum');
+      expect(expectRequest('PATCH', '/investments/2').request.body).toEqual({ category: 'Momentum' });
+    });
+
+    it('doesn\'t save values that didn\'t change', () => {
+      service.setCash(1, 3819.69);
+      service.setPrice('SCHD', 32.72);
+      service.setCategory('SCHD', ' Dividend ');
+      service.setShares('SCHD', 2, 3016.075);
+      service.removeInvestment('GONE');
+      service.moveInvestment(1, 1);
+      expect(investment(service, 'SCHD').category).toBe('Dividend');
+      expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM']);
+    });
+
+    it('puts a value back and reports the failure when the server rejects it', () => {
+      service.setCash(3, 100);
+      fail(expectRequest('PATCH', '/accounts/3'));
+      expect(service.accounts()[2].cash).toBe(51989.58);
+      expect(service.saveError()).toBe('Couldn\'t save the Roth cash.');
+
+      service.setShares('SPMO', 2, 1);
+      expect(service.saveError()).toBe('');
+      fail(expectRequest('PUT', '/positions'));
+      expect(investment(service, 'SPMO').shares[2]).toBe(227.321);
+      expect(service.saveError()).toBe('Couldn\'t save the SPMO shares in Traditional.');
+
+      service.setCategory('SPMO', 'Momentum');
+      fail(expectRequest('PATCH', '/investments/2'));
+      expect(investment(service, 'SPMO').category).toBe('Growth');
+      expect(service.saveError()).toBe('Couldn\'t save the SPMO category.');
+    });
+
+    it('keeps a newer edit when an older save fails', () => {
+      service.setPrice('SCHD', 40);
+      service.setPrice('SCHD', 41);
+      const [first, second] = http.match({ method: 'PATCH', url: `${API}/investments/1` });
+      second.flush({});
+      fail(first);
+      expect(investment(service, 'SCHD').price).toBe(41);
+    });
   });
 
-  it('fills in missing values and sums duplicate positions', () => {
-    const svc = create();
-    load(svc, ACCOUNTS, [...INVESTMENTS, { investmentId: 4, ticker: 'VTI', category: null, color: null, price: null, sequence: null }], [
-      ...POSITIONS,
-      { positionId: 7, accountId: 1, investmentId: 4, shares: 2 },
-      { positionId: 8, accountId: 1, investmentId: 4, shares: 3 },
-      { positionId: 9, accountId: 2, investmentId: 4, shares: null },
-      { positionId: 10, accountId: 99, investmentId: 4, shares: 7 }
-    ]);
-    expect(investment(svc, 'VTI')).toEqual({ ticker: 'VTI', category: '', price: 0, color: TICKER_COLORS[2], shares: { 1: 5, 2: 0, 3: 0 } });
+  describe('colors', () => {
+    it('previews valid colors while picking and saves the final one', () => {
+      service.previewColor('SCHD', '#FF0000');
+      service.previewColor('SCHD', 'red');
+      service.previewColor('SCHD', '#00ff00');
+      expect(investment(service, 'SCHD').color).toBe('#00ff00');
+      expect(service.summaries()[1].positions.find(p => p.ticker === 'SCHD')!.color).toBe('#00ff00');
+
+      service.saveColor('SCHD');
+      expect(expectRequest('PATCH', '/investments/1').request.body).toEqual({ color: '#00ff00' });
+    });
+
+    it('doesn\'t save a color that ends where it started', () => {
+      service.previewColor('SCHD', '#ff0000');
+      service.previewColor('SCHD', '#2383A9');
+      service.saveColor('SCHD');
+      service.saveColor('SPMO');
+      expect(investment(service, 'SCHD').color).toBe('#2383a9');
+    });
+
+    it('restores the color from before the preview when saving fails', () => {
+      service.previewColor('SCHD', '#ff0000');
+      service.previewColor('SCHD', '#00ff00');
+      service.saveColor('SCHD');
+      fail(expectRequest('PATCH', '/investments/1'));
+      expect(investment(service, 'SCHD').color).toBe('#2383a9');
+    });
   });
 
-  it('reports a failed load and clears the error when a retry succeeds', () => {
-    const svc = create();
-    svc.load();
-    expect(svc.loading()).toBeTrue();
-    http.expectOne(`${API}/accounts`).flush(ACCOUNTS);
-    http.expectOne(`${API}/investments`).flush(INVESTMENTS);
-    http.expectOne(`${API}/positions`).flush('down', { status: 503, statusText: 'Service Unavailable' });
-    expect(svc.loading()).toBeFalse();
-    expect(svc.loadError()).not.toBe('');
-    expect(svc.investments()).toEqual([]);
+  describe('adding', () => {
+    it('adds an investment on the server, then to the end of the list with no shares', () => {
+      let done = false;
+      service.addInvestment(' vti ', ' Total Market ', 300).subscribe({ complete: () => (done = true) });
+      const request = expectRequest('POST', '/investments');
+      expect(request.request.body).toEqual({ ticker: 'VTI', category: 'Total Market', color: TICKER_COLORS[2], price: 300 });
+      expect(tickers(service)).not.toContain('VTI');
 
-    load(svc);
-    expect(svc.loadError()).toBe('');
-    expect(tickers(svc)).toEqual(['SCHD', 'SPMO', 'SPYM']);
+      request.flush({ investmentId: 4, ticker: 'VTI', category: 'Total Market', color: TICKER_COLORS[2], price: 300, sequence: 4 });
+      expect(done).toBeTrue();
+      expect(investment(service, 'VTI')).toEqual({
+        id: 4, ticker: 'VTI', category: 'Total Market', price: 300, color: TICKER_COLORS[2], shares: { 1: 0, 2: 0, 3: 0 }
+      });
+      expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM', 'VTI']);
+    });
+
+    it('rejects blank and listed tickers without calling the server', () => {
+      const errors: string[] = [];
+      service.addInvestment('  ', '', 1).subscribe({ error: (e: Error) => errors.push(e.message) });
+      service.addInvestment('schd', '', 1).subscribe({ error: (e: Error) => errors.push(e.message) });
+      expect(errors).toEqual(['Enter a ticker.', 'SCHD is already in the list.']);
+    });
+
+    it('explains a ticker the server already has, or any other failure', () => {
+      const errors: string[] = [];
+      service.addInvestment('VTI', '', 1).subscribe({ error: (e: Error) => errors.push(e.message) });
+      expectRequest('POST', '/investments').flush('exists', { status: 409, statusText: 'Conflict' });
+      service.addInvestment('VTI', '', 1).subscribe({ error: (e: Error) => errors.push(e.message) });
+      fail(expectRequest('POST', '/investments'));
+      expect(errors).toEqual(['VTI is already in the list.', 'Couldn\'t add VTI.']);
+      expect(tickers(service)).not.toContain('VTI');
+    });
+
+    it('gives new tickers the first unused default color, then rotates', () => {
+      add('VTI', 4);
+      expect(investment(service, 'VTI').color).toBe(TICKER_COLORS[2]);
+      add('A', 5);
+      add('B', 6);
+      add('C', 7);
+      expect(investment(service, 'C').color).toBe(TICKER_COLORS[0]);
+    });
   });
 
-  it('refreshes prices from the server, keeping local edits to other fields', () => {
-    service.setColor('SCHD', '#ff0000');
-    service.removeInvestment('SPYM');
-    service.refreshPrices();
-    expect(service.refreshingPrices()).toBeTrue();
-    const request = http.expectOne(`${API}/investments/prices/refresh`);
-    expect(request.request.method).toBe('POST');
-    request.flush([
-      { ...INVESTMENTS[0], price: 35.42 },
-      { ...INVESTMENTS[1], price: null },
-      { ...INVESTMENTS[2], price: 90.47 }
-    ]);
-    expect(service.refreshingPrices()).toBeFalse();
-    expect(investment(service, 'SCHD')).toEqual(jasmine.objectContaining({ price: 35.42, color: '#ff0000' }));
-    expect(investment(service, 'SPMO').price).toBe(153.23);
-    expect(tickers(service)).toEqual(['SCHD', 'SPMO']);
-  });
+  describe('removing and reordering', () => {
+    it('removes an investment from every account and deletes it on the server', () => {
+      service.removeInvestment('SPMO');
+      expect(tickers(service)).toEqual(['SCHD', 'SPYM']);
+      service.summaries().forEach(s => expect(s.positions.map(p => p.ticker)).not.toContain('SPMO'));
+      expectRequest('DELETE', '/investments/2').flush(null);
+    });
 
-  it('reports a failed price refresh without changing prices', () => {
-    service.refreshPrices();
-    http.expectOne(`${API}/investments/prices/refresh`).flush('down', { status: 500, statusText: 'Server Error' });
-    expect(service.refreshingPrices()).toBeFalse();
-    expect(service.refreshError()).not.toBe('');
-    expect(investment(service, 'SCHD').price).toBe(32.72);
-  });
+    it('puts a removed investment back where it was when the delete fails', () => {
+      service.removeInvestment('SPMO');
+      fail(expectRequest('DELETE', '/investments/2'));
+      expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM']);
+      expect(service.saveError()).toBe('Couldn\'t remove SPMO.');
+    });
 
-  it('only lists positions with shares in the account', () => {
-    const brokerage = service.summaries().find(s => s.account.id === 1)!;
-    expect(brokerage.positions.length).toBe(0);
-    expect(brokerage.cashPercent).toBe(1);
-  });
+    it('moves an investment and saves the new order of ids', () => {
+      service.moveInvestment(2, 0);
+      expect(tickers(service)).toEqual(['SPYM', 'SCHD', 'SPMO']);
+      expect(expectRequest('PUT', '/investments/order').request.body).toEqual([3, 1, 2]);
+    });
 
-  it('recalculates when price, shares or cash change', () => {
-    service.setPrice('SCHD', 40);
-    service.setShares('SCHD', 1, 10);
-    service.setCash(1, 600);
-    const brokerage = service.summaries().find(s => s.account.id === 1)!;
-    expect(brokerage.total).toBe(1000);
-    expect(brokerage.positions[0].percent).toBeCloseTo(0.4);
-  });
-
-  it('adds new tickers in upper case with no shares, and rejects duplicates', () => {
-    expect(service.addInvestment(' vti ', 'Total Market', 300)).toBeTrue();
-    expect(investment(service, 'VTI').shares).toEqual({ 1: 0, 2: 0, 3: 0 });
-    expect(service.addInvestment('VTI', '', 1)).toBeFalse();
-    expect(service.addInvestment('  ', '', 1)).toBeFalse();
-  });
-
-  it('removes an investment from every account', () => {
-    service.removeInvestment('SPMO');
-    expect(tickers(service)).not.toContain('SPMO');
-    service.summaries().forEach(s => expect(s.positions.map(p => p.ticker)).not.toContain('SPMO'));
-  });
-
-  it('moves an investment and saves the new order', () => {
-    service.moveInvestment(2, 0);
-    expect(tickers(service)).toEqual(['SPYM', 'SCHD', 'SPMO']);
-    expect(JSON.parse(localStorage.getItem(HOLDINGS_ORDER_KEY)!)).toEqual(['SPYM', 'SCHD', 'SPMO']);
-  });
-
-  it('restores the saved order over the server order, putting unknown tickers last', () => {
-    localStorage.setItem(HOLDINGS_ORDER_KEY, JSON.stringify(['SPYM', 'GONE', 'SCHD']));
-    const restored = create();
-    load(restored);
-    expect(tickers(restored)).toEqual(['SPYM', 'SCHD', 'SPMO']);
-  });
-
-  it('ignores a corrupt saved order', () => {
-    localStorage.setItem(HOLDINGS_ORDER_KEY, '{not json');
-    const restored = create();
-    load(restored);
-    expect(tickers(restored)).toEqual(['SCHD', 'SPMO', 'SPYM']);
-  });
-
-  it('saves the order when investments are added or removed', () => {
-    service.addInvestment('VTI', '', 1);
-    service.removeInvestment('SCHD');
-    expect(JSON.parse(localStorage.getItem(HOLDINGS_ORDER_KEY)!)).toEqual(['SPMO', 'SPYM', 'VTI']);
-  });
-
-  it('gives new tickers the first unused default color, then rotates', () => {
-    service.addInvestment('VTI', '', 1);
-    expect(investment(service, 'VTI').color).toBe(TICKER_COLORS[2]);
-    ['A', 'B', 'C'].forEach(t => service.addInvestment(t, '', 1));
-    expect(investment(service, 'C').color).toBe(TICKER_COLORS[0]);
-  });
-
-  it('changes and saves a ticker color, ignoring invalid values', () => {
-    service.setColor('SCHD', '#FF0000');
-    service.setColor('SCHD', 'red');
-    expect(investment(service, 'SCHD').color).toBe('#ff0000');
-    expect(JSON.parse(localStorage.getItem(HOLDINGS_COLORS_KEY)!).SCHD).toBe('#ff0000');
-    expect(service.summaries()[1].positions.find(p => p.ticker === 'SCHD')!.color).toBe('#ff0000');
-  });
-
-  it('restores saved colors over the server colors and skips invalid ones', () => {
-    localStorage.setItem(HOLDINGS_COLORS_KEY, JSON.stringify({ SPYM: '#123abc', SCHD: 'not-a-color' }));
-    const restored = create();
-    load(restored);
-    expect(investment(restored, 'SPYM').color).toBe('#123abc');
-    expect(investment(restored, 'SCHD').color).toBe('#2383a9');
+    it('restores the previous order when saving it fails', () => {
+      service.moveInvestment(2, 0);
+      fail(expectRequest('PUT', '/investments/order'));
+      expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM']);
+      expect(service.saveError()).toBe('Couldn\'t save the new order.');
+    });
   });
 });

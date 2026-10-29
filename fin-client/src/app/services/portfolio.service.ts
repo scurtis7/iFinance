@@ -1,11 +1,9 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { finalize, forkJoin } from 'rxjs';
-import { AccountDto, InvestmentDto, PositionDto } from '../models/api.model';
+import { catchError, finalize, forkJoin, map, Observable, tap, throwError } from 'rxjs';
+import { AccountDto, InvestmentChanges, InvestmentDto, PositionDto } from '../models/api.model';
 import { Account, AccountId, AccountSummary, Investment } from '../models/portfolio.model';
 import { FinanceApiService } from './finance-api.service';
-
-export const HOLDINGS_ORDER_KEY = 'ifinance.holdingsOrder';
-export const HOLDINGS_COLORS_KEY = 'ifinance.holdingsColors';
 
 /**
  * Default ticker colors, handed out in order to tickers that don't have one yet.
@@ -19,6 +17,8 @@ export const TICKER_COLORS = ['#2383a9', '#99c639', '#618e9e', '#39c3f9', '#5775
 export class PortfolioService {
 
   private readonly api = inject(FinanceApiService);
+  /** Each ticker's color from before its current preview, so a failed save can put it back. */
+  private readonly colorsBeforePreview = new Map<string, string>();
 
   readonly accounts = signal<Account[]>([]);
   readonly investments = signal<Investment[]>([]);
@@ -27,6 +27,7 @@ export class PortfolioService {
 
   readonly loading = signal(false);
   readonly loadError = signal('');
+  readonly saveError = signal('');
   readonly refreshingPrices = signal(false);
   readonly refreshError = signal('');
 
@@ -56,10 +57,7 @@ export class PortfolioService {
     this.summaries().reduce((sum, s) => sum + s.total, 0) + this.hsa()
   );
 
-  /**
-   * Replaces accounts and investments with the server's. Edits aren't sent to the server yet, so loading
-   * again discards them; a saved ticker order and saved colors still override the server's.
-   */
+  /** Replaces accounts and investments with the server's. */
   load(): void {
     this.loading.set(true);
     this.loadError.set('');
@@ -69,7 +67,7 @@ export class PortfolioService {
         next: ([accountDtos, investmentDtos, positionDtos]) => {
           const accounts = toAccounts(accountDtos);
           this.accounts.set(accounts);
-          this.investments.set(applySavedColors(applySavedOrder(toInvestments(investmentDtos, accounts, positionDtos))));
+          this.investments.set(toInvestments(investmentDtos, accounts, positionDtos));
         },
         error: () => this.loadError.set('Couldn\'t load the portfolio from the server.')
       });
@@ -94,74 +92,153 @@ export class PortfolioService {
   }
 
   setCash(id: AccountId, cash: number): void {
-    this.accounts.update(accounts => accounts.map(a => (a.id === id ? { ...a, cash } : a)));
+    const account = this.accounts().find(a => a.id === id);
+    if (!account || account.cash === cash) {
+      return;
+    }
+    // Only changes the cash if it still holds `from`, so undoing a failed save never overwrites a newer edit.
+    const change = (from: number, to: number) =>
+      this.accounts.update(accounts => accounts.map(a => (a.id === id && a.cash === from ? { ...a, cash: to } : a)));
+    change(account.cash, cash);
+    this.save(this.api.updateAccount(id, { cash }), () => change(cash, account.cash), `Couldn't save the ${account.name} cash.`);
   }
 
   setPrice(ticker: string, price: number): void {
-    this.updateInvestment(ticker, inv => ({ ...inv, price }));
+    this.saveInvestmentField(ticker, 'price', price);
   }
 
   setCategory(ticker: string, category: string): void {
-    this.updateInvestment(ticker, inv => ({ ...inv, category }));
+    this.saveInvestmentField(ticker, 'category', category.trim());
   }
 
-  /** Ignores anything that isn't a six-digit hex color such as `#2383a9`. */
-  setColor(ticker: string, color: string): void {
-    if (!isHexColor(color)) {
+  /** Shows a color while it's being picked; saveColor() stores it. Ignores anything that isn't a six-digit hex color. */
+  previewColor(ticker: string, color: string): void {
+    const investment = this.findInvestment(ticker);
+    if (!investment || !isHexColor(color)) {
       return;
     }
+    if (!this.colorsBeforePreview.has(ticker)) {
+      this.colorsBeforePreview.set(ticker, investment.color);
+    }
     this.updateInvestment(ticker, inv => ({ ...inv, color: color.toLowerCase() }));
-    this.saveColors();
+  }
+
+  /** Saves the color previewed for a ticker, if it ended up different from where it started. */
+  saveColor(ticker: string): void {
+    const investment = this.findInvestment(ticker);
+    const before = this.colorsBeforePreview.get(ticker);
+    this.colorsBeforePreview.delete(ticker);
+    if (investment && before !== undefined && before !== investment.color) {
+      this.sendInvestmentField(investment, 'color', investment.color, before);
+    }
   }
 
   setShares(ticker: string, id: AccountId, shares: number): void {
-    this.updateInvestment(ticker, inv => ({ ...inv, shares: { ...inv.shares, [id]: shares } }));
+    const investment = this.findInvestment(ticker);
+    const account = this.accounts().find(a => a.id === id);
+    if (!investment || !account || investment.shares[id] === shares) {
+      return;
+    }
+    const previous = investment.shares[id];
+    const change = (from: number, to: number) =>
+      this.updateInvestment(ticker, inv => (inv.shares[id] === from ? { ...inv, shares: { ...inv.shares, [id]: to } } : inv));
+    change(previous, shares);
+    this.save(
+      this.api.savePosition({ accountId: id, investmentId: investment.id, shares }),
+      () => change(shares, previous),
+      `Couldn't save the ${ticker} shares in ${account.name}.`
+    );
   }
 
   setHsa(value: number): void {
     this.hsa.set(value);
   }
 
-  /** Returns false when the ticker is blank or already present. */
-  addInvestment(ticker: string, category: string, price: number): boolean {
+  /**
+   * Adds the investment on the server, then to the end of the list. Fails with an error whose message can be shown
+   * when the ticker is blank or taken, or the server can't add it.
+   */
+  addInvestment(ticker: string, category: string, price: number): Observable<void> {
     const symbol = ticker.trim().toUpperCase();
-    if (!symbol || this.investments().some(inv => inv.ticker === symbol)) {
-      return false;
+    if (!symbol) {
+      return throwError(() => new Error('Enter a ticker.'));
     }
-    this.investments.update(list => [
-      ...list,
-      { ticker: symbol, category: category.trim(), price, color: nextDefaultColor(list), shares: noShares(this.accounts()) }
-    ]);
-    this.saveOrder();
-    this.saveColors();
-    return true;
+    if (this.findInvestment(symbol)) {
+      return throwError(() => new Error(`${symbol} is already in the list.`));
+    }
+    const color = nextDefaultColor(this.investments());
+    return this.api.createInvestment({ ticker: symbol, category: category.trim(), color, price }).pipe(
+      tap(dto => this.investments.update(list => withDefaultColors([...list, toInvestment(dto, this.accounts(), [])]))),
+      map(() => undefined),
+      catchError((error: unknown) => throwError(() => new Error(error instanceof HttpErrorResponse && error.status === 409
+        ? `${symbol} is already in the list.`
+        : `Couldn't add ${symbol}.`)))
+    );
   }
 
   removeInvestment(ticker: string): void {
+    const index = this.investments().findIndex(inv => inv.ticker === ticker);
+    if (index === -1) {
+      return;
+    }
+    const removed = this.investments()[index];
     this.investments.update(list => list.filter(inv => inv.ticker !== ticker));
-    this.saveOrder();
-    this.saveColors();
+    this.save(this.api.deleteInvestment(removed.id), () => this.investments.update(list => {
+      const restored = [...list];
+      restored.splice(index, 0, removed);
+      return restored;
+    }), `Couldn't remove ${ticker}.`);
   }
 
-  /** Moves the investment at one index to another and remembers the new order. */
+  /** Moves the investment at one index to another and saves the new order. */
   moveInvestment(from: number, to: number): void {
     if (from === to) {
       return;
     }
+    const previousOrder = this.investments().map(inv => inv.ticker);
     this.investments.update(list => {
       const reordered = [...list];
       reordered.splice(to, 0, ...reordered.splice(from, 1));
       return reordered;
     });
-    this.saveOrder();
+    this.save(
+      this.api.reorderInvestments(this.investments().map(inv => inv.id)),
+      () => this.investments.update(list => inTickerOrder(list, previousOrder)),
+      'Couldn\'t save the new order.'
+    );
   }
 
-  private saveOrder(): void {
-    writeStored(HOLDINGS_ORDER_KEY, this.investments().map(inv => inv.ticker));
+  private saveInvestmentField<K extends keyof InvestmentChanges>(ticker: string, field: K, value: Investment[K]): void {
+    const investment = this.findInvestment(ticker);
+    if (!investment || investment[field] === value) {
+      return;
+    }
+    this.updateInvestment(ticker, inv => ({ ...inv, [field]: value }));
+    this.sendInvestmentField(investment, field, value, investment[field]);
   }
 
-  private saveColors(): void {
-    writeStored(HOLDINGS_COLORS_KEY, Object.fromEntries(this.investments().map(inv => [inv.ticker, inv.color])));
+  /** Saves a field already changed here, putting back `previous` if the save fails and nothing has changed it since. */
+  private sendInvestmentField<K extends keyof InvestmentChanges>(investment: Investment, field: K, value: Investment[K], previous: Investment[K]): void {
+    this.save(
+      this.api.updateInvestment(investment.id, { [field]: value } as InvestmentChanges),
+      () => this.updateInvestment(investment.ticker, inv => (inv[field] === value ? { ...inv, [field]: previous } : inv)),
+      `Couldn't save the ${investment.ticker} ${field}.`
+    );
+  }
+
+  /** Sends a change that's already shown here, undoing it and reporting the failure if the server doesn't accept it. */
+  private save(request: Observable<unknown>, undo: () => void, failure: string): void {
+    this.saveError.set('');
+    request.subscribe({
+      error: () => {
+        undo();
+        this.saveError.set(failure);
+      }
+    });
+  }
+
+  private findInvestment(ticker: string): Investment | undefined {
+    return this.investments().find(inv => inv.ticker === ticker);
   }
 
   private updateInvestment(ticker: string, change: (inv: Investment) => Investment): void {
@@ -178,22 +255,29 @@ function toAccounts(dtos: AccountDto[]): Account[] {
 /** Orders investments by sequence (unsequenced last) and gives each its shares in every account. */
 function toInvestments(dtos: InvestmentDto[], accounts: Account[], positions: PositionDto[]): Investment[] {
   const lastIfNull = (sequence: number | null) => sequence ?? Number.MAX_SAFE_INTEGER;
-  const investments = [...dtos]
+  return withDefaultColors([...dtos]
     .sort((a, b) => lastIfNull(a.sequence) - lastIfNull(b.sequence) || a.investmentId - b.investmentId)
-    .map(dto => {
-      const shares = noShares(accounts);
-      positions
-        .filter(p => p.investmentId === dto.investmentId && p.accountId in shares)
-        .forEach(p => (shares[p.accountId] += p.shares ?? 0));
-      return {
-        ticker: dto.ticker,
-        category: dto.category ?? '',
-        price: dto.price ?? 0,
-        color: isHexColor(dto.color) ? dto.color.toLowerCase() : '',
-        shares
-      };
-    });
-  // Fill in missing colors one at a time so each picks a default the others aren't using.
+    .map(dto => toInvestment(dto, accounts, positions)));
+}
+
+/** Leaves the color blank when the server's isn't valid; withDefaultColors() fills it in. */
+function toInvestment(dto: InvestmentDto, accounts: Account[], positions: PositionDto[]): Investment {
+  const shares = noShares(accounts);
+  positions
+    .filter(p => p.investmentId === dto.investmentId && p.accountId in shares)
+    .forEach(p => (shares[p.accountId] += p.shares ?? 0));
+  return {
+    id: dto.investmentId,
+    ticker: dto.ticker,
+    category: dto.category ?? '',
+    price: dto.price ?? 0,
+    color: isHexColor(dto.color) ? dto.color.toLowerCase() : '',
+    shares
+  };
+}
+
+/** Fills in missing colors one at a time so each picks a default the others aren't using. */
+function withDefaultColors(investments: Investment[]): Investment[] {
   investments.filter(inv => !inv.color).forEach(inv => (inv.color = nextDefaultColor(investments)));
   return investments;
 }
@@ -208,12 +292,8 @@ function nextDefaultColor(investments: Investment[]): string {
   return TICKER_COLORS.find(color => !used.has(color)) ?? TICKER_COLORS[investments.length % TICKER_COLORS.length];
 }
 
-/** Sorts investments by the saved ticker order; tickers without a saved position keep their order at the end. */
-function applySavedOrder(investments: Investment[]): Investment[] {
-  const order = readStored(HOLDINGS_ORDER_KEY);
-  if (!Array.isArray(order)) {
-    return investments;
-  }
+/** Sorts investments into the given ticker order; tickers that aren't in it keep their order at the end. */
+function inTickerOrder(investments: Investment[], order: string[]): Investment[] {
   const rank = (ticker: string) => {
     const index = order.indexOf(ticker);
     return index === -1 ? Number.MAX_SAFE_INTEGER : index;
@@ -221,37 +301,8 @@ function applySavedOrder(investments: Investment[]): Investment[] {
   return [...investments].sort((a, b) => rank(a.ticker) - rank(b.ticker));
 }
 
-/** Replaces default colors with any valid saved ones. */
-function applySavedColors(investments: Investment[]): Investment[] {
-  const colors = readStored(HOLDINGS_COLORS_KEY);
-  if (!colors || typeof colors !== 'object' || Array.isArray(colors)) {
-    return investments;
-  }
-  return investments.map(inv => {
-    const saved = (colors as Record<string, unknown>)[inv.ticker];
-    return isHexColor(saved) ? { ...inv, color: saved.toLowerCase() } : inv;
-  });
-}
-
 function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value);
-}
-
-/** Storage can be unavailable (private mode, blocked site data) or hold bad JSON; either way, act as if nothing is saved. */
-function readStored(key: string): unknown {
-  try {
-    return JSON.parse(localStorage.getItem(key) ?? 'null');
-  } catch {
-    return null;
-  }
-}
-
-function writeStored(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Nothing to do; the preference just won't persist.
-  }
 }
 
 function percentOf(value: number, total: number): number {

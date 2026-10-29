@@ -9,6 +9,9 @@
     </h2>
     @if (expanded) {
       <span class="hint">Edit cash, price and shares. Everything else is calculated.</span>
+      @if (portfolio.saveError()) {
+        <span class="error" role="alert">{{ portfolio.saveError() }}</span>
+      }
       @if (portfolio.refreshError()) {
         <span class="error" role="alert">{{ portfolio.refreshError() }}</span>
       }
@@ -70,7 +73,8 @@
               <td>
                 <input class="swatch" type="color" [value]="inv.color" [attr.aria-label]="inv.ticker + ' color'"
                        title="Change {{ inv.ticker }} color"
-                       (input)="portfolio.setColor(inv.ticker, $any($event.target).value)">
+                       (input)="portfolio.previewColor(inv.ticker, $any($event.target).value)"
+                       (change)="portfolio.saveColor(inv.ticker)">
               </td>
               <td>
                 <input type="text" inputmode="decimal" [value]="inv.price | currency" [attr.aria-label]="inv.ticker + ' price'"
@@ -119,7 +123,7 @@
         }
         <div class="dialog-actions">
           <button class="secondary-btn" type="button" (click)="closeAdd(addDialog)">Cancel</button>
-          <button class="primary-btn" type="submit">Add</button>
+          <button class="primary-btn" type="submit" [disabled]="adding">Add</button>
         </div>
       </form>
     </dialog>

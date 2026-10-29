@@ -21,3 +21,25 @@ export interface PositionDto {
   investmentId: number;
   shares: number | null;
 }
+
+// Request bodies. Fields left out of a PATCH keep their current value.
+
+export interface AccountChanges {
+  cash?: number;
+}
+
+export interface InvestmentChanges {
+  category?: string;
+  color?: string;
+  price?: number;
+}
+
+export interface NewInvestment extends InvestmentChanges {
+  ticker: string;
+}
+
+export interface PositionShares {
+  accountId: number;
+  investmentId: number;
+  shares: number;
+}
