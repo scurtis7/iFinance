@@ -48,7 +48,7 @@ BEGIN;  -- Begin a transaction in case the entire script gets executed
         ticker          VARCHAR(32) UNIQUE NOT NULL,
         category        VARCHAR(64),
         color           VARCHAR(16),
-        price           NUMERIC(7, 4),
+        price           NUMERIC(12, 4),
         sequence        INT,
         created_date    DATE DEFAULT CURRENT_DATE
     );
@@ -69,7 +69,9 @@ BEGIN;  -- Begin a transaction in case the entire script gets executed
             REFERENCES finance.account (account_id),
         CONSTRAINT fk_position_investment
             FOREIGN KEY (investment_id)
-            REFERENCES finance.investment (investment_id)
+            REFERENCES finance.investment (investment_id),
+        CONSTRAINT uq_position_account_investment
+            UNIQUE (account_id, investment_id)
     );
 
     INSERT INTO finance.position (account_id, investment_id, shares)
