@@ -8,8 +8,8 @@ The Finance Server is built on top of a few core technologies:
 
 * Java 21
 * [Spring Boot](https://spring.io/projects/spring-boot) (4.0.0+), using WebFlux and R2DBC
-* [PostgreSQL](https://www.postgresql.org) (42.7.11+)
-* [Maven](https://maven.apache.org) (3.0.0+)
+* [PostgreSQL](https://www.postgresql.org)
+* [Maven](https://maven.apache.org), through the included wrapper (`./mvnw`)
 
 # Technologies
 
