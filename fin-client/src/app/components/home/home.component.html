@@ -28,10 +28,15 @@
 
     <app-holdings-editor></app-holdings-editor>
 
-    <h2 class="section-title">Accounts</h2>
-    <div class="accounts" #accounts>
+    <div class="section-header">
+      <h2 class="section-title">Accounts</h2>
+      @if (portfolio.accountOrderError()) {
+        <span class="error" role="alert">{{ portfolio.accountOrderError() }}</span>
+      }
+    </div>
+    <div class="accounts" #accounts cdkDropList cdkDropListOrientation="mixed" (cdkDropListDropped)="reorder($event)">
       @for (s of portfolio.summaries(); track s.account.id) {
-        <app-account-card [summary]="s"></app-account-card>
+        <app-account-card cdkDrag [summary]="s"></app-account-card>
       }
     </div>
   }

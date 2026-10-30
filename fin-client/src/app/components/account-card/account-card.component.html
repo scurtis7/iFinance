@@ -1,5 +1,6 @@
 <article class="card">
-  <header>
+  <header cdkDragHandle title="Drag to move {{ summary().account.name }}">
+    <span class="grip" aria-hidden="true">⠿</span>
     <h3>{{ summary().account.name }}</h3>
     <span class="total">{{ summary().total | currency }}</span>
   </header>

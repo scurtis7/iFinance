@@ -1,5 +1,6 @@
 import { afterRender, Component, ElementRef, inject, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
+import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { PortfolioService } from '../../services/portfolio.service';
 import { AccountCardComponent } from '../account-card/account-card.component';
 import { HoldingsEditorComponent } from '../holdings-editor/holdings-editor.component';
@@ -7,7 +8,7 @@ import { HoldingsEditorComponent } from '../holdings-editor/holdings-editor.comp
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CurrencyPipe, AccountCardComponent, HoldingsEditorComponent],
+  imports: [CdkDrag, CdkDropList, CurrencyPipe, AccountCardComponent, HoldingsEditorComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
@@ -20,6 +21,10 @@ export class HomeComponent {
   constructor() {
     this.portfolio.load();
     afterRender(() => this.fitCardWidth());
+  }
+
+  reorder(event: CdkDragDrop<unknown>): void {
+    this.portfolio.moveAccount(event.previousIndex, event.currentIndex);
   }
 
   /** Sizes the account columns to the widest card's natural width so every card fits its table and they all match. */

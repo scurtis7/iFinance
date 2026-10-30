@@ -1,11 +1,12 @@
 import { Component, computed, input } from '@angular/core';
 import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { AccountSummary } from '../../models/portfolio.model';
 
 @Component({
   selector: 'app-account-card',
   standalone: true,
-  imports: [CurrencyPipe, DecimalPipe, PercentPipe],
+  imports: [CdkDragHandle, CurrencyPipe, DecimalPipe, PercentPipe],
   templateUrl: './account-card.component.html',
   styleUrl: './account-card.component.scss'
 })

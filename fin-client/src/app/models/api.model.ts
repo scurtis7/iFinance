@@ -4,6 +4,7 @@ export interface AccountDto {
   accountId: number;
   name: string;
   cash: number | null;
+  sequence: number | null;
 }
 
 export interface InvestmentDto {

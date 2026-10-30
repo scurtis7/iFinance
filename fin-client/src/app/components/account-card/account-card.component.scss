@@ -22,16 +22,28 @@
 
 header {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
+  gap: 8px;
+  cursor: grab;
 
   h3 {
     margin: 0;
     font-size: 1.2rem;
   }
+
+  &:hover .grip {
+    color: $dark-teal-600;
+  }
+}
+
+.grip {
+  color: $air-force-blue-300;
+  font-size: 1.1rem;
+  user-select: none;
 }
 
 .total {
+  margin-left: auto;
   font-size: 1.3rem;
   font-weight: 700;
   color: $dark-teal-700;

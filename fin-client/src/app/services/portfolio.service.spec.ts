@@ -9,9 +9,9 @@ const API = 'http://api.test';
 
 // The rows from database/FinanceDB.sql, with the spreadsheet's prices.
 const ACCOUNTS: AccountDto[] = [
-  { accountId: 1, name: 'Brokerage', cash: 3819.69 },
-  { accountId: 2, name: 'Traditional', cash: 166872.61 },
-  { accountId: 3, name: 'Roth', cash: 51989.58 }
+  { accountId: 1, name: 'Brokerage', cash: 3819.69, sequence: null },
+  { accountId: 2, name: 'Traditional', cash: 166872.61, sequence: null },
+  { accountId: 3, name: 'Roth', cash: 51989.58, sequence: null }
 ];
 const INVESTMENTS: InvestmentDto[] = [
   { investmentId: 1, ticker: 'SCHD', category: 'Dividend', color: '#2383a9', price: 32.72, sequence: 1 },
@@ -80,10 +80,10 @@ describe('PortfolioService', () => {
       expect(service.grandTotal()).toBeCloseTo(446698.50, 0);
     });
 
-    it('sorts accounts by id and investments by sequence, unsequenced last', () => {
+    it('sorts accounts and investments by sequence, unsequenced last', () => {
       const svc = create();
-      load(svc, [...ACCOUNTS].reverse(), [{ ...INVESTMENTS[0], sequence: null }, INVESTMENTS[2], INVESTMENTS[1]]);
-      expect(svc.accounts().map(a => a.id)).toEqual([1, 2, 3]);
+      load(svc, [ACCOUNTS[1], ACCOUNTS[0], { ...ACCOUNTS[2], sequence: 1 }], [{ ...INVESTMENTS[0], sequence: null }, INVESTMENTS[2], INVESTMENTS[1]]);
+      expect(svc.accounts().map(a => a.id)).toEqual([3, 1, 2]);
       expect(tickers(svc)).toEqual(['SPMO', 'SPYM', 'SCHD']);
     });
 
@@ -185,6 +185,7 @@ describe('PortfolioService', () => {
       service.setHsa(18.15);
       service.removeInvestment('GONE');
       service.moveInvestment(1, 1);
+      service.moveAccount(1, 1);
       expect(investment(service, 'SCHD').category).toBe('Dividend');
       expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM']);
     });
@@ -320,6 +321,33 @@ describe('PortfolioService', () => {
       fail(expectRequest('PUT', '/investments/order'));
       expect(tickers(service)).toEqual(['SCHD', 'SPMO', 'SPYM']);
       expect(service.saveError()).toBe('Couldn\'t save the new order.');
+    });
+
+    it('moves an account everywhere it is listed and saves the new order of ids', () => {
+      service.moveAccount(2, 0);
+      expect(service.accounts().map(a => a.name)).toEqual(['Roth', 'Brokerage', 'Traditional']);
+      expect(service.summaries().map(s => s.account.name)).toEqual(['Roth', 'Brokerage', 'Traditional']);
+      expect(expectRequest('PUT', '/accounts/order').request.body).toEqual([3, 1, 2]);
+    });
+
+    it('restores the previous account order when saving it fails, keeping newer edits', () => {
+      service.moveAccount(2, 0);
+      const order = expectRequest('PUT', '/accounts/order');
+      service.setCash(3, 100);
+      expectRequest('PATCH', '/accounts/3').flush({ ...ACCOUNTS[2], cash: 100 });
+      fail(order);
+      expect(service.accounts().map(a => a.name)).toEqual(['Brokerage', 'Traditional', 'Roth']);
+      expect(service.accounts()[2].cash).toBe(100);
+      expect(service.accountOrderError()).toBe('Couldn\'t save the new account order.');
+      expect(service.saveError()).toBe('');
+    });
+
+    it('clears the account order error on the next move', () => {
+      service.moveAccount(2, 0);
+      fail(expectRequest('PUT', '/accounts/order'));
+      service.moveAccount(2, 0);
+      expect(service.accountOrderError()).toBe('');
+      expectRequest('PUT', '/accounts/order').flush([]);
     });
   });
 });

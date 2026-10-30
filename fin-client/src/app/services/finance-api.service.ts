@@ -50,6 +50,11 @@ export class FinanceApiService {
     return this.http.patch<AccountDto>(`${this.baseUrl}/accounts/${accountId}`, changes);
   }
 
+  /** Numbers the accounts in the order of the given ids and returns them all in that order. */
+  reorderAccounts(accountIds: number[]): Observable<AccountDto[]> {
+    return this.http.put<AccountDto[]>(`${this.baseUrl}/accounts/order`, accountIds);
+  }
+
   /** Adds an investment after the others. Fails with 409 when the ticker already exists. */
   createInvestment(investment: NewInvestment): Observable<InvestmentDto> {
     return this.http.post<InvestmentDto>(`${this.baseUrl}/investments`, investment);

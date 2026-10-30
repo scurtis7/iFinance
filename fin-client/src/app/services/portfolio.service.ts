@@ -27,6 +27,7 @@ export class PortfolioService {
   readonly loading = signal(false);
   readonly loadError = signal('');
   readonly saveError = signal('');
+  readonly accountOrderError = signal('');
   readonly refreshingPrices = signal(false);
   readonly refreshError = signal('');
 
@@ -205,15 +206,26 @@ export class PortfolioService {
       return;
     }
     const previousOrder = this.investments().map(inv => inv.ticker);
-    this.investments.update(list => {
-      const reordered = [...list];
-      reordered.splice(to, 0, ...reordered.splice(from, 1));
-      return reordered;
-    });
+    this.investments.update(list => moved(list, from, to));
     this.save(
       this.api.reorderInvestments(this.investments().map(inv => inv.id)),
       () => this.investments.update(list => inTickerOrder(list, previousOrder)),
       'Couldn\'t save the new order.'
+    );
+  }
+
+  /** Moves the account at one index to another and saves the new order. */
+  moveAccount(from: number, to: number): void {
+    if (from === to) {
+      return;
+    }
+    const previousOrder = this.accounts().map(account => account.id);
+    this.accounts.update(list => moved(list, from, to));
+    this.save(
+      this.api.reorderAccounts(this.accounts().map(account => account.id)),
+      () => this.accounts.update(list => [...list].sort((a, b) => previousOrder.indexOf(a.id) - previousOrder.indexOf(b.id))),
+      'Couldn\'t save the new account order.',
+      this.accountOrderError
     );
   }
 
@@ -236,12 +248,12 @@ export class PortfolioService {
   }
 
   /** Sends a change that's already shown here, undoing it and reporting the failure if the server doesn't accept it. */
-  private save(request: Observable<unknown>, undo: () => void, failure: string): void {
-    this.saveError.set('');
+  private save(request: Observable<unknown>, undo: () => void, failure: string, error = this.saveError): void {
+    error.set('');
     request.subscribe({
       error: () => {
         undo();
-        this.saveError.set(failure);
+        error.set(failure);
       }
     });
   }
@@ -255,15 +267,15 @@ export class PortfolioService {
   }
 }
 
+/** Orders accounts by sequence (unsequenced last). */
 function toAccounts(dtos: AccountDto[]): Account[] {
   return [...dtos]
-    .sort((a, b) => a.accountId - b.accountId)
+    .sort((a, b) => lastIfNull(a.sequence) - lastIfNull(b.sequence) || a.accountId - b.accountId)
     .map(dto => ({ id: dto.accountId, name: dto.name, cash: dto.cash ?? 0 }));
 }
 
 /** Orders investments by sequence (unsequenced last) and gives each its shares in every account. */
 function toInvestments(dtos: InvestmentDto[], accounts: Account[], positions: PositionDto[]): Investment[] {
-  const lastIfNull = (sequence: number | null) => sequence ?? Number.MAX_SAFE_INTEGER;
   return withDefaultColors([...dtos]
     .sort((a, b) => lastIfNull(a.sequence) - lastIfNull(b.sequence) || a.investmentId - b.investmentId)
     .map(dto => toInvestment(dto, accounts, positions)));
@@ -299,6 +311,17 @@ function noShares(accounts: Account[]): Record<AccountId, number> {
 function nextDefaultColor(investments: Investment[]): string {
   const used = new Set(investments.map(inv => inv.color));
   return TICKER_COLORS.find(color => !used.has(color)) ?? TICKER_COLORS[investments.length % TICKER_COLORS.length];
+}
+
+function lastIfNull(sequence: number | null): number {
+  return sequence ?? Number.MAX_SAFE_INTEGER;
+}
+
+/** A copy of the list with the item at one index moved to another. */
+function moved<T>(list: T[], from: number, to: number): T[] {
+  const reordered = [...list];
+  reordered.splice(to, 0, ...reordered.splice(from, 1));
+  return reordered;
 }
 
 /** Sorts investments into the given ticker order; tickers that aren't in it keep their order at the end. */
