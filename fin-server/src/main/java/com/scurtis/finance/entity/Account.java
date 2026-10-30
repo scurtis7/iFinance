@@ -21,6 +21,7 @@ public class Account implements Persistable<Long> {
     private Long id;
     private String name;
     private BigDecimal cash;
+    private Integer sequence;
     @ReadOnlyProperty
     @Column(value = "created_date")
     private LocalDate creationDate;

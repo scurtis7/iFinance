@@ -93,12 +93,13 @@ class FinanceControllerTest {
 
     @Test
     void patchAccountSetsOnlyTheCash() {
-        AccountDto account = send(HttpMethod.PATCH, "/accounts/{id}", Map.of("cash", 600, "name", "Renamed"), brokerage.getId())
+        AccountDto account = send(HttpMethod.PATCH, "/accounts/{id}", Map.of("cash", 600, "name", "Renamed", "sequence", 9), brokerage.getId())
             .expectStatus().isOk()
             .expectBody(AccountDto.class).returnResult().getResponseBody();
 
         assertThat(account.getCash()).isEqualByComparingTo("600");
         assertThat(account.getName()).isEqualTo("Brokerage");
+        assertThat(account.getSequence()).isNull();
         assertThat(accountRepository.findById(brokerage.getId()).block().getCash()).isEqualByComparingTo("600");
     }
 
@@ -178,6 +179,20 @@ class FinanceControllerTest {
         assertThat(ordered).extracting(InvestmentDto::getTicker).containsExactly("SPMO", "SCHD", "VTI");
         assertThat(ordered).extracting(InvestmentDto::getSequence).containsExactly(1, 2, 3);
         assertThat(investmentRepository.findById(vti.getId()).block().getSequence()).isEqualTo(3);
+    }
+
+    @Test
+    void putOrderRenumbersAccountsPuttingTheOnesLeftOutLast() {
+        Account traditional = accountRepository.save(account("Traditional", "166872.61")).block();
+
+        List<AccountDto> ordered = send(HttpMethod.PUT, "/accounts/order", List.of(roth.getId(), UNKNOWN_ID))
+            .expectStatus().isOk()
+            .expectBodyList(AccountDto.class).returnResult().getResponseBody();
+
+        assertThat(ordered).extracting(AccountDto::getName).containsExactly("Roth", "Brokerage", "Traditional");
+        assertThat(ordered).extracting(AccountDto::getSequence).containsExactly(1, 2, 3);
+        assertThat(accountRepository.findById(traditional.getId()).block().getSequence()).isEqualTo(3);
+        assertThat(accountRepository.findById(roth.getId()).block().getCash()).isEqualByComparingTo("51989.58");
     }
 
     @Test

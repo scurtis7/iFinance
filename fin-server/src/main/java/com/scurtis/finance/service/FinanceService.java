@@ -6,6 +6,7 @@ import com.scurtis.finance.dto.AccountPositionDto;
 import com.scurtis.finance.dto.HsaDto;
 import com.scurtis.finance.dto.InvestmentDto;
 import com.scurtis.finance.dto.PositionDto;
+import com.scurtis.finance.entity.Account;
 import com.scurtis.finance.entity.Hsa;
 import com.scurtis.finance.entity.Investment;
 import com.scurtis.finance.entity.Position;
@@ -74,6 +75,25 @@ public class FinanceService {
                 }
                 return accountRepository.save(account);
             })
+            .map(financeConverter::toDto);
+    }
+
+    /**
+     * Numbers the accounts 1, 2, 3... in the order of the given ids. Accounts that are left out follow in their
+     * current order, and unknown ids are ignored. Returns every account in the new order.
+     */
+    @Transactional
+    public Flux<AccountDto> reorderAccounts(List<Long> accountIds) {
+        Comparator<Account> requestedOrder = Comparator.comparingInt(account -> {
+            int index = accountIds.indexOf(account.getId());
+            return index == -1 ? Integer.MAX_VALUE : index;
+        });
+        return accountRepository.findAll()
+            .sort(requestedOrder
+                .thenComparing(Account::getSequence, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Account::getId))
+            .index()
+            .concatMap(numbered -> resequence(numbered.getT2(), numbered.getT1().intValue() + 1))
             .map(financeConverter::toDto);
     }
 
@@ -220,6 +240,14 @@ public class FinanceService {
             .mapNotNull(Investment::getSequence)
             .reduce(0, Math::max)
             .map(highest -> highest + 1);
+    }
+
+    private Mono<Account> resequence(Account account, int sequence) {
+        if (Objects.equals(account.getSequence(), sequence)) {
+            return Mono.just(account);
+        }
+        account.setSequence(sequence);
+        return accountRepository.save(account);
     }
 
     private Mono<Investment> resequence(Investment investment, int sequence) {

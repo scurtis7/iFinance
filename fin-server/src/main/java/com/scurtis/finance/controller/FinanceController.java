@@ -61,6 +61,11 @@ public class FinanceController {
         return financeService.updateAccount(accountId, changes);
     }
 
+    @PutMapping(value = "accounts/order")
+    public Flux<AccountDto> reorderAccounts(@RequestBody List<Long> accountIds) {
+        return financeService.reorderAccounts(accountIds);
+    }
+
     @PostMapping(value = "investments")
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<InvestmentDto> createInvestment(@RequestBody InvestmentDto investment) {

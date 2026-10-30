@@ -15,5 +15,6 @@ public class AccountDto {
     private Long accountId;
     private String name;
     private BigDecimal cash;
+    private Integer sequence;
 
 }

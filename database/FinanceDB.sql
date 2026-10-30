@@ -35,12 +35,15 @@ BEGIN;  -- Begin a transaction in case the entire script gets executed
 --         account_id   SERIAL PRIMARY KEY,
 --         name         VARCHAR(32) UNIQUE NOT NULL,
 --         cash         NUMERIC(12, 4),
+--         sequence     INT,
 --         created_date DATE DEFAULT CURRENT_DATE
 --     );
 --     INSERT INTO finance.account (name, cash)
 --     VALUES ('Brokerage', 3819.69),
 --            ('Traditional', 166872.61),
 --            ('Roth', 51989.58);
+
+    ALTER TABLE finance.account ADD COLUMN sequence INT;
 
     DROP TABLE IF EXISTS finance.position;
     DROP TABLE IF EXISTS finance.investment;

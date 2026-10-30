@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class FinanceConverter {
 
     public AccountDto toDto(Account account) {
-        return new AccountDto(account.getId(), account.getName(), account.getCash());
+        return new AccountDto(account.getId(), account.getName(), account.getCash(), account.getSequence());
     }
 
     public InvestmentDto toDto(Investment investment) {
